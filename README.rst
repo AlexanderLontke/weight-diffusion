@@ -14,6 +14,14 @@ A longer description of your project goes here...
 
 .. _pyscaffold-notes:
 
+Development
+===========
+To start development start with
+
+.. code-block:: console
+
+    pip install -e ".[develop]"
+
 Note
 ====
 
