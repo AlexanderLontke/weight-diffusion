@@ -1,36 +1,19 @@
-from typing import Any, Tuple, List, Dict, Union
-
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-from tqdm import tqdm
-from pathlib import Path
-import random
-import copy
-
-import itertools
-from math import factorial
-import glob
-
-from torch.utils.data.dataset import T_co
-
-from checkpoints_to_datasets.permute_checkpoint import permute_checkpoint
-from checkpoints_to_datasets.map_to_canonical import sort_layers_checkpoint
-from checkpoints_to_datasets.dataset_auxiliaries import (
-    vectorize_checkpoint,
-    add_noise_to_checkpoint,
-    printProgressBar,
-    vector_to_checkpoint,
-)
-from checkpoints_to_datasets.random_erasing import RandomErasingVector
-import ray
-from checkpoints_to_datasets.progress_bar import ProgressBar
-
 import os
 import json
 import csv
+from typing import Any, Tuple, List, Dict, Union
 
+from tqdm import tqdm
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+from pathlib import Path
+from torch.utils.data.dataset import T_co
+
+from weight_diffusion.data.data_utils.normalization import get_normalizer
 from weight_diffusion.data.data_utils.helper import get_flat_params
+# TODO Permutation
+
 
 def get_all_directories_for_a_path(
         path: Path,
@@ -49,6 +32,16 @@ def get_all_directories_for_a_path(
     return result
 
 
+def _guess_dtype(x):
+    try:
+        return float(x)
+    except ValueError:
+        try:
+            return bool(x)
+        except ValueError:
+            return x
+
+
 def parse_progress_csv(
         path_to_progress_csv: Path,
 ) -> Dict[int, Dict[str, Union[str, int, float]]]:
@@ -63,20 +56,34 @@ def parse_progress_csv(
         progress_dict = {}
         count = 0
         for row in reader:
-            progress_dict[count] = {k: v for k, v in zip(header, row)}
+            progress_dict[count] = {k: _guess_dtype(v) for k, v in zip(header, row)}
             count += 1
     return progress_dict
 
 
 class ModelZooDataset(Dataset):
-    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str):
+    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str, openai_coeff: float,
+                 normalizer_name="openai"):
         super().__init__()
         self.min_parameter_value = np.Inf
         self.max_parameter_value = -np.Inf
         self.data_dir = data_dir
+
+        # Define which model metric should be used for training
         self.checkpoint_property_of_interest = checkpoint_property_of_interest
+
+        # Load model architecture
         with open(data_dir.joinpath("index_dict.json")) as model_json:
             self.model_config = json.load(model_json)
+
+        # Define normalizer
+        self.normalizer_name = normalizer_name
+        self.openai_coeff = openai_coeff
+        self.normalizer = get_normalizer(
+            self.normalizer_name,
+            openai_coeff=self.openai_coeff
+        )
+
         # Load model checkpoints
         self.checkpoints_dict = {}
         for model_directory in tqdm(

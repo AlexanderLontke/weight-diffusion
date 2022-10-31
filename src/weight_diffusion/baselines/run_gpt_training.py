@@ -151,6 +151,7 @@ def train(cfg):
     train_dataset = GptDataset(
         data_dir=Path(cfg.dataset.path),
         checkpoint_property_of_interest=cfg.dataset.train_metric,
+        openai_coeff=cfg.dataset.openai_coeff,
     )
 
     # Construct data loaders

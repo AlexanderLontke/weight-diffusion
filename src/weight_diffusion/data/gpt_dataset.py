@@ -1,11 +1,7 @@
 from pathlib import Path
 
 from weight_diffusion.data.modelzoo_dataset import ModelZooDataset
-from weight_diffusion.data.data_utils.normalization import get_normalizer
 from weight_diffusion.data.data_utils.helper import get_param_sizes, get_flat_params
-
-# TODO Permutation
-# TODO Normalization
 
 
 class GptDataset(ModelZooDataset):
@@ -13,18 +9,13 @@ class GptDataset(ModelZooDataset):
                  normalizer_name="openai"):
         super().__init__(
             data_dir=data_dir,
-            checkpoint_property_of_interest=checkpoint_property_of_interest
+            checkpoint_property_of_interest=checkpoint_property_of_interest,
+            openai_coeff=openai_coeff,
+            normalizer_name=normalizer_name,
         )
         (sample, _), (_, _) = super().__getitem__(0)
         self.parameter_sizes = get_param_sizes(sample).long().tolist()
         self.parameter_names = list(sample.keys())
-
-        self.normalizer_name = normalizer_name
-        self.openai_coeff = openai_coeff
-        self.normalizer = get_normalizer(
-            self.normalizer_name,
-            openai_coeff=self.openai_coeff
-        )
 
     def __getitem__(self, index):
         (checkpoint0, loss0), (checkpoint1, loss1) = super().__getitem__(index)
