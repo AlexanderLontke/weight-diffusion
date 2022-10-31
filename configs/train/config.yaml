@@ -1,6 +1,6 @@
 amp: false
 rng_seed: 0
-num_gpus: 0
+num_gpus: 1
 out_dir: results
 exp_name: mnist_loss
 resume_path: null

@@ -5,17 +5,21 @@ from weight_diffusion.data.data_utils.helper import get_param_sizes, get_flat_pa
 
 
 class GptDataset(ModelZooDataset):
-    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str, openai_coeff: float,
-                 normalizer_name="openai"):
+    def __init__(
+        self,
+        data_dir: Path,
+        checkpoint_property_of_interest: str,
+        openai_coeff: float,
+        normalizer_name="openai",
+    ):
         super().__init__(
             data_dir=data_dir,
             checkpoint_property_of_interest=checkpoint_property_of_interest,
             openai_coeff=openai_coeff,
             normalizer_name=normalizer_name,
         )
-        (sample, _), (_, _) = super().__getitem__(0)
-        self.parameter_sizes = get_param_sizes(sample).long().tolist()
-        self.parameter_names = list(sample.keys())
+        self.parameter_sizes = get_param_sizes(self.data_sample).long().tolist()
+        self.parameter_names = list(self.data_sample.keys())
 
     def __getitem__(self, index):
         (checkpoint0, loss0), (checkpoint1, loss1) = super().__getitem__(index)
