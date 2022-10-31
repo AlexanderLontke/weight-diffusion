@@ -1,23 +1,29 @@
 from pathlib import Path
-import torch
+
 from weight_diffusion.data.modelzoo_dataset import ModelZooDataset
+from weight_diffusion.data.data_utils.normalization import get_normalizer
+from weight_diffusion.data.data_utils.helper import get_param_sizes, get_flat_params
 
 # TODO Permutation
 # TODO Normalization
 
 
-def get_flat_params(state_dict):
-    parameters = []
-    for parameter in state_dict.values():
-        parameters.append(parameter.flatten())
-    return torch.cat(parameters)
-
-
 class GptDataset(ModelZooDataset):
-    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str):
+    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str, openai_coeff: float,
+                 normalizer_name="openai"):
         super().__init__(
             data_dir=data_dir,
             checkpoint_property_of_interest=checkpoint_property_of_interest
+        )
+        (sample, _), (_, _) = super().__getitem__(0)
+        self.parameter_sizes = get_param_sizes(sample).long().tolist()
+        self.parameter_names = list(sample.keys())
+
+        self.normalizer_name = normalizer_name
+        self.openai_coeff = openai_coeff
+        self.normalizer = get_normalizer(
+            self.normalizer_name,
+            openai_coeff=self.openai_coeff
         )
 
     def __getitem__(self, index):
@@ -28,3 +34,9 @@ class GptDataset(ModelZooDataset):
             f"{self.checkpoint_property_of_interest}_0": loss0,
             f"{self.checkpoint_property_of_interest}_1": loss1,
         }
+
+    def normalize(self, weights):
+        return self.normalizer.normalize(weights)
+
+    def unnormalize(self, normalized_weights):
+        return self.normalizer.unnormalize(normalized_weights)

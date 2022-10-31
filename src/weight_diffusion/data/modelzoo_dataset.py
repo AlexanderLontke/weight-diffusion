@@ -1,4 +1,6 @@
 from typing import Any, Tuple, List, Dict, Union
+
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
@@ -28,6 +30,7 @@ import os
 import json
 import csv
 
+from weight_diffusion.data.data_utils.helper import get_flat_params
 
 def get_all_directories_for_a_path(
         path: Path,
@@ -68,6 +71,8 @@ def parse_progress_csv(
 class ModelZooDataset(Dataset):
     def __init__(self, data_dir: Path, checkpoint_property_of_interest: str):
         super().__init__()
+        self.min_parameter_value = np.Inf
+        self.max_parameter_value = -np.Inf
         self.data_dir = data_dir
         self.checkpoint_property_of_interest = checkpoint_property_of_interest
         with open(data_dir.joinpath("index_dict.json")) as model_json:
@@ -97,10 +102,8 @@ class ModelZooDataset(Dataset):
                     self.count += 1
 
     def __getitem__(self, index) -> T_co:
-        model_key, checkpoint_step_tuple = self.index_dict[index]
-        return (
-            self.checkpoints_dict[model_key][step] for step in checkpoint_step_tuple
-        )
+        model_key, (checkpoint_0, checkpoint_1) = self.index_dict[index]
+        return self.checkpoints_dict[model_key][checkpoint_0], self.checkpoints_dict[model_key][checkpoint_1]
 
     def __len__(self):
         return self.count
@@ -112,7 +115,17 @@ class ModelZooDataset(Dataset):
         checkpoint_path = os.path.join(
             self.data_dir, model_directory, checkpoint_directory, "checkpoints"
         )
-        return int(checkpoint_directory[-6:]), torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path)
+        flattened_checkpoint = get_flat_params(checkpoint)
+
+        # Store Min and Max parameter value for later
+        min_parameter_in_cp, max_parameter_in_cp = (getattr(flattened_checkpoint, f)().item() for f in ["min", "max"])
+        if self.min_parameter_value > min_parameter_in_cp:
+            self.min_parameter_value = min_parameter_in_cp
+        if self.max_parameter_value < max_parameter_in_cp:
+            self.max_parameter_value = max_parameter_in_cp
+
+        return int(checkpoint_directory[-6:]), checkpoint
 
     def _parse_model_directory(
             self, model_directory

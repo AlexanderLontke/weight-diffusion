@@ -3,6 +3,8 @@
 Script for training and evaluating G.pt models.
 """
 
+import hydra
+import omegaconf
 from pathlib import Path
 import os
 import random
@@ -26,8 +28,8 @@ from Gpt.utils import (
     requires_grad,
 )
 from Gpt.distributed import get_rank, get_world_size, is_main_proc, synchronize
-from Gpt.vis import VisMonitor
-from Gpt.tasks import get
+# from Gpt.vis import VisMonitor
+# from Gpt.tasks import get
 from Gpt.download import find_model
 
 from weight_diffusion.data.gpt_dataset import GptDataset
@@ -143,28 +145,12 @@ def test_epoch(cfg, diffusion, model, test_loader, timestep_sampler, meter, epoc
 def train(cfg):
     """Performs the full training loop."""
 
-    # Set up the environment
-    seed = setup_env(cfg)
-
     # Instantiate visualization objects (they will be fully-initialized later on)
-    vis_monitor = VisMonitor(
-        cfg.dataset.name,
-        None,
-        None,
-        net_mb_size=cfg.vis.net_mb_size_per_gpu,
-        vis_recursion=cfg.vis.recursive_probe,
-        vis_period=cfg.vis.freq,
-        delay_test_fn=True,
-        dvo_steps=cfg.vis.dvo_steps,
-        prompt_start_coeff=cfg.vis.prompt_start_coeff,
-        thresholding=cfg.sampling.thresholding,
-        param_range=None,
-    )
 
     # Construct datasets
     train_dataset = GptDataset(
-        data_dir=Path("../../data/tune_zoo_mnist_uniform/"),
-        checkpoint_property_of_interest="validation_loss",
+        data_dir=Path(cfg.dataset.path),
+        checkpoint_property_of_interest=cfg.dataset.train_metric,
     )
 
     # Construct data loaders
@@ -300,7 +286,7 @@ def single_proc_train(local_rank, port, world_size, cfg):
     exit()
 
 
-@hydra.main(config_path="configs/train", config_name="config.yaml")
+@hydra.main(config_path="../../../configs/train", config_name="config.yaml")
 def main(cfg: omegaconf.DictConfig):
 
     # Multi-gpu training
