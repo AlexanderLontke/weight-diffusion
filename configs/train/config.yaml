@@ -2,7 +2,7 @@ amp: false
 rng_seed: 0
 num_gpus: 1
 out_dir: results
-exp_name: mnist_loss
+exp_name: local_mnist_loss
 resume_path: null
 test_only: false
 debug_mode: false
@@ -14,7 +14,7 @@ dataset:
   num_test_runs: 500
   augment: true
   normalizer: openai
-  openai_coeff: 4.185
+  openai_coefficient: 4.185
   target_epoch_size: 100800
   max_train_runs: 1000000
   num_workers: 1
@@ -68,7 +68,7 @@ wandb:
   name: ${exp_name}
   group: default
   project: Gpt
-  entity: learn2learn
+  entity: alontke
   mode: online
 
 defaults:
