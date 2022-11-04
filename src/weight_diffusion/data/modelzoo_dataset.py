@@ -1,38 +1,24 @@
-from typing import Any, Tuple, List, Dict, Union
-import torch
-from torch.utils.data import Dataset
-from tqdm import tqdm
-from pathlib import Path
-import random
-import copy
-
-import itertools
-from math import factorial
-import glob
-
-from torch.utils.data.dataset import T_co
-
-from checkpoints_to_datasets.permute_checkpoint import permute_checkpoint
-from checkpoints_to_datasets.map_to_canonical import sort_layers_checkpoint
-from checkpoints_to_datasets.dataset_auxiliaries import (
-    vectorize_checkpoint,
-    add_noise_to_checkpoint,
-    printProgressBar,
-    vector_to_checkpoint,
-)
-from checkpoints_to_datasets.random_erasing import RandomErasingVector
-import ray
-from checkpoints_to_datasets.progress_bar import ProgressBar
-
 import os
 import json
 import csv
+from typing import Tuple, List, Dict, Union, Callable
+from tqdm import tqdm
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+from pathlib import Path
+from torch.utils.data.dataset import T_co
+
+from weight_diffusion.data.data_utils.normalization import get_normalizer
+from weight_diffusion.data.data_utils.helper import get_flat_params
+from weight_diffusion.data.data_utils.permutation import Permutation
+from weight_diffusion.data.data_utils.helper import perform_train_test_validation_split
 
 
 def get_all_directories_for_a_path(
-        path: Path,
-        return_only_directories: bool = True,
-        return_no_hidden_directories: bool = True,
+    path: Path,
+    return_only_directories: bool = True,
+    return_no_hidden_directories: bool = True,
 ):
     result = os.listdir(path)
     if return_only_directories:
@@ -42,13 +28,25 @@ def get_all_directories_for_a_path(
             if os.path.isdir(os.path.join(path, directory))
         ]
     if return_no_hidden_directories:
-        result = [directory for directory in result if not directory.startswith(".")]
+        result = [
+            directory for directory in result if not str(directory).startswith(".")
+        ]
     return result
 
 
+def _guess_dtype(x):
+    try:
+        return float(x)
+    except ValueError:
+        try:
+            return bool(x)
+        except ValueError:
+            return x
+
+
 def parse_progress_csv(
-        path_to_progress_csv: Path,
-) -> Dict[int, Dict[str, Union[str, int, float]]]:
+    path_to_progress_csv: Path,
+) -> Dict[int, Dict[str, Union[str, bool, float]]]:
     """
     To know what the training/test loss/other metrics looked like at each checkpoint
     we need to parse the progress CSV file which is included for each model
@@ -60,78 +58,174 @@ def parse_progress_csv(
         progress_dict = {}
         count = 0
         for row in reader:
-            progress_dict[count] = {k: v for k, v in zip(header, row)}
+            progress_dict[count] = {k: _guess_dtype(v) for k, v in zip(header, row)}
             count += 1
     return progress_dict
 
 
 class ModelZooDataset(Dataset):
-    def __init__(self, data_dir: Path, checkpoint_property_of_interest: str):
+    def __init__(
+        self,
+        data_dir: Path,
+        checkpoint_property_of_interest: str,
+        split: str,
+        dataset_split_ratios: List[float] = None,
+        openai_coefficient: float = 4.185,
+        normalizer_name="openai",
+        use_permutation: bool = True,
+        permute_layers: Union[List[int], str] = "all",
+        number_of_permutations: int = 10,
+        permutation_mode="random",
+    ):
         super().__init__()
         self.data_dir = data_dir
-        self.checkpoint_property_of_interest = checkpoint_property_of_interest
+        self.use_permutation = use_permutation
+        self.split = split
+
+        # Initialize dataset attributes
+        self.min_parameter_value = np.Inf
+        self.max_parameter_value = -np.Inf
+
+        # Initialize dataset split ratios
+        if not dataset_split_ratios:
+            dataset_split_ratios = [10, 0]
+        self.dataset_split_ratios = dataset_split_ratios
+
+        # Load model architecture
         with open(data_dir.joinpath("index_dict.json")) as model_json:
             self.model_config = json.load(model_json)
+        self.layer_list = self.model_config["layer"]
+
+        # Get all model directories and perform train_val_test split
+        model_directory_paths = perform_train_test_validation_split(
+            list_to_split=get_all_directories_for_a_path(data_dir)[:15],
+            dataset_split_ratios=self.dataset_split_ratios,
+            split=self.split,
+        )
+
         # Load model checkpoints
-        self.checkpoints_dict = {}
-        for model_directory in tqdm(
-                get_all_directories_for_a_path(data_dir)[:15], desc="Loading Models"
-        ):
-            self.checkpoints_dict[model_directory] = self._parse_model_directory(
-                model_directory
-            )
+        self.checkpoints_dict = {}  # Dict[Model Nr.][Checkpoint Nr.] = model_state_dict
+        self.checkpoint_metrics_dict = {}
+        self.model_count = 0
+        for model_directory in tqdm(model_directory_paths, desc="Loading Models"):
+            (
+                self.checkpoints_dict[self.model_count],
+                self.checkpoint_metrics_dict[self.model_count],
+            ) = self._parse_model_directory(model_directory)
+            self.model_count += 1
 
         # Create dataset index
-        self.index_dict = {}
+        self.index_dict = {}  # Dict[index nr.] = (model Nr., Checkpoint Nr.)
         self.count = 0
         for model_key, checkpoints_dict in tqdm(
-                self.checkpoints_dict.items(), desc="Indexing dataset"
+            self.checkpoints_dict.items(), desc="Indexing dataset"
         ):
-            checkpoints_list = list(checkpoints_dict.keys())
-            n_checkpoints = len(checkpoints_list)
-            # Index not only for a single checkpoint but all possible
-            # combinations of start and end checkpoint pairs
+            n_checkpoints = len(checkpoints_dict.keys())
             for i in range(n_checkpoints):
-                for j in range(i + 1, n_checkpoints):
-                    self.index_dict[self.count] = (model_key, (i, j))
-                    self.count += 1
+                self.index_dict[self.count] = (model_key, i)
+                self.count += 1
+
+        # Define which model metric should be used for training
+        self.checkpoint_property_of_interest = checkpoint_property_of_interest
+
+        # Initialize dataset attributes
+        model_key, checkpoint_key = self.index_dict[0]
+        self.data_sample = self.checkpoints_dict[model_key][checkpoint_key]
+        self.optimal_loss = self._reduce_metrics_data(
+            metric=self.checkpoint_property_of_interest,
+            aggregation_function=min,
+        )
+
+        # Define normalizer
+        self.normalizer_name = normalizer_name
+        self.openai_coefficient = openai_coefficient
+        self.normalizer = get_normalizer(
+            self.normalizer_name, openai_coeff=self.openai_coefficient
+        )
+
+        # Prepare permutation
+        if permute_layers == "all":
+            permute_layers = [
+                layer_id
+                for layer_id, layer_type in self.layer_list[
+                    :-1
+                ]  # Can't permute last layer
+            ]
+        self.permute_layers = permute_layers
+
+        # Initialize permutation
+        if use_permutation:
+            self.permutation = Permutation(
+                checkpoint_sample=self.data_sample,
+                layers_to_permute=self.permute_layers,
+                layer_lst=self.layer_list,
+                number_of_permutations=number_of_permutations,
+                permutation_mode=permutation_mode,
+            )
 
     def __getitem__(self, index) -> T_co:
-        model_key, checkpoint_step_tuple = self.index_dict[index]
-        return (
-            self.checkpoints_dict[model_key][step] for step in checkpoint_step_tuple
-        )
+        model_key, checkpoint_key = self.index_dict[index]
+        checkpoint = self.checkpoints_dict[model_key][checkpoint_key]
+        if self.use_permutation:
+            checkpoint = self.permutation.permute_checkpoint(checkpoint=checkpoint)
+        return checkpoint
 
     def __len__(self):
         return self.count
 
     # parsing methods
     def _parse_checkpoint_directory(
-            self, checkpoint_directory, model_directory
+        self, checkpoint_directory, model_directory
     ) -> Tuple[int, torch.Tensor]:
         checkpoint_path = os.path.join(
             self.data_dir, model_directory, checkpoint_directory, "checkpoints"
         )
-        return int(checkpoint_directory[-6:]), torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path)
+        flattened_checkpoint = get_flat_params(checkpoint)
+
+        # Store Min and Max parameter value for later
+        min_parameter_in_cp, max_parameter_in_cp = (
+            getattr(flattened_checkpoint, f)().item() for f in ["min", "max"]
+        )
+        if self.min_parameter_value > min_parameter_in_cp:
+            self.min_parameter_value = min_parameter_in_cp
+        if self.max_parameter_value < max_parameter_in_cp:
+            self.max_parameter_value = max_parameter_in_cp
+
+        return int(checkpoint_directory[-6:]), checkpoint
 
     def _parse_model_directory(
-            self, model_directory
-    ) -> Dict[int, Tuple[torch.Tensor, Union[str, int, float]]]:
+        self, model_directory
+    ) -> Tuple[Dict[int, torch.Tensor], Dict[int, Dict[str, Union[str, bool, float]]]]:
         model_directory_dict = {}
         model_progress_dict = parse_progress_csv(
-            path_to_progress_csv=self.data_dir.joinpath(model_directory).joinpath("progress.csv")
+            path_to_progress_csv=self.data_dir.joinpath(model_directory).joinpath(
+                "progress.csv"
+            )
         )
+
         for checkpoint_directory in get_all_directories_for_a_path(
-                self.data_dir.joinpath(model_directory)
+            self.data_dir.joinpath(model_directory)
         ):
             checkpoint_key, checkpoint = self._parse_checkpoint_directory(
-                checkpoint_directory, model_directory,
+                checkpoint_directory,
+                model_directory,
             )
             if checkpoint_key in model_progress_dict.keys():
-                checkpoint_metrics = model_progress_dict[checkpoint_key]
-                model_directory_dict[checkpoint_key] = (
-                    checkpoint, checkpoint_metrics[self.checkpoint_property_of_interest]
-                )
+                model_directory_dict[checkpoint_key] = checkpoint
             else:
                 continue
-        return model_directory_dict
+        return model_directory_dict, model_progress_dict
+
+    def _reduce_metrics_data(self, metric: str, aggregation_function: Callable):
+        return aggregation_function(
+            [
+                aggregation_function(
+                    [
+                        metrics_dict[metric]
+                        for _, metrics_dict in checkpoint_dict.items()
+                    ]
+                )
+                for _, checkpoint_dict in self.checkpoint_metrics_dict.items()
+            ]
+        )

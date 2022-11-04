@@ -2,9 +2,15 @@
 """
 Script for training and evaluating G.pt models.
 """
+try:
+    import isaacgym
+except ImportError:
+    print("WARNING: Isaac Gym not imported")
 
-from pathlib import Path
 import os
+from pathlib import Path
+import hydra
+import omegaconf
 import random
 from copy import deepcopy
 import torch
@@ -162,9 +168,22 @@ def train(cfg):
     )
 
     # Construct datasets
+    dataset_split_ratios = [7, 3]
     train_dataset = GptDataset(
-        data_dir=Path("../../data/tune_zoo_mnist_uniform/"),
-        checkpoint_property_of_interest="validation_loss",
+        data_dir=Path(cfg.dataset.path),
+        checkpoint_property_of_interest=cfg.dataset.train_metric,
+        openai_coefficient=cfg.dataset.openai_coefficient,
+        split="train",
+        dataset_split_ratios=dataset_split_ratios,
+    )
+
+    test_dataset = GptDataset(
+        data_dir=Path(cfg.dataset.path),
+        checkpoint_property_of_interest=cfg.dataset.train_metric,
+        openai_coefficient=cfg.dataset.openai_coefficient,
+        split="test",
+        dataset_split_ratios=dataset_split_ratios,
+        use_permutation=False,
     )
 
     # Construct data loaders
@@ -176,9 +195,18 @@ def train(cfg):
         drop_last=True,
         num_workers=cfg.dataset.num_workers,
     )
+    test_loader = construct_loader(
+        test_dataset,
+        cfg.test.mb_size,
+        cfg.num_gpus,
+        shuffle=False,
+        drop_last=False,
+        num_workers=cfg.dataset.num_workers,
+    )
 
     # Construct meters
     train_meter = TrainMeter(len(train_loader), cfg.train.num_ep)
+    test_meter = TestMeter(len(test_loader), cfg.train.num_ep)
 
     # Construct the model and optimizer
     model = Gpt(
@@ -264,6 +292,64 @@ def train(cfg):
         start_epoch = 0
         print("Training from scratch")
 
+    # Construct vis structures
+    net_indices = (
+        get_rank() + torch.arange(cfg.vis.num_nets_per_gpu) * get_world_size()
+    ).tolist()
+    training_trajectory = torch.stack(
+        [train_dataset.get_run_losses(i) for i in net_indices]
+    )
+    training_trajectory = spread_losses(
+        training_trajectory, steps=15, minimize=get(cfg.dataset.name, "minimize")
+    )
+
+    optimal_test_metrics = {
+        "training_set": train_dataset.optimal_loss,
+        "test_set": test_dataset.optimal_loss,
+    }
+    trn_set_losses_dict = dict()
+    task_net_dict = {
+        "training_set": torch.stack(
+            [train_dataset.get_run_network(i) for i in net_indices]
+        ).cuda(),
+        "test_set": torch.stack(
+            [test_dataset.get_run_network(i) for i in net_indices]
+        ).cuda(),
+    }
+
+    if (
+        cfg.debug_mode
+    ):  # Don't visualize on test set in debug mode, and visualize if model can fit training set well:
+        print(f"training losses for visualization: {training_trajectory}")
+        trn_set_losses_dict["training_set"] = training_trajectory
+        optimal_test_metrics.pop("test_set")
+        task_net_dict.pop("test_set")
+
+    # This is a hack to make sure Isaac Gym instantiates without causing a segfault:
+    vis_monitor.task_net_dict = task_net_dict
+    vis_monitor.unnormalize_fn = train_dataset.unnormalize
+    vis_monitor.create_test_fn()
+    vis_monitor.create_synth_fn(
+        thresholding=cfg.sampling.thresholding,
+        param_range=train_dataset.get_range(normalize=True),
+    )
+    model2vis = ema if cfg.transformer.ema and cfg.vis.use_ema else model
+    model2test = ema if cfg.transformer.ema and cfg.test.use_ema else model
+
+    # Test only
+    if cfg.test_only:
+        test_metric = vis_monitor.vis_model(
+            diffusion,
+            model2vis,
+            0,
+            trn_set_losses_dict,
+            None,
+            optimal_test_metrics,
+            cfg.exp_name,
+        )
+        print(f"Test metric: {test_metric}")
+        return
+
     print("Beginning training...")
     best_test_metric = float("-inf")
     for epoch in range(start_epoch, cfg.train.num_ep):
@@ -280,11 +366,21 @@ def train(cfg):
             train_meter,
             epoch,
         )
-
-        # new_best_model = (test_metric is not None) and (test_metric > best_test_metric)
-        # if new_best_model:
-        #     best_test_metric = test_metric
-        # checkpoint_model(cfg, new_best_model, epoch + 1, module, ema, optimizer)
+        test_epoch(
+            cfg, diffusion, model2test, test_loader, timestep_sampler, test_meter, epoch
+        )
+        test_metric = vis_monitor.vis_model(
+            diffusion,
+            model2vis,
+            epoch + 1,
+            trn_set_losses_dict,
+            None,
+            optimal_test_metrics,
+        )
+        new_best_model = (test_metric is not None) and (test_metric > best_test_metric)
+        if new_best_model:
+            best_test_metric = test_metric
+        checkpoint_model(cfg, new_best_model, epoch + 1, module, ema, optimizer)
 
 
 def single_proc_train(local_rank, port, world_size, cfg):
@@ -302,7 +398,6 @@ def single_proc_train(local_rank, port, world_size, cfg):
 
 @hydra.main(config_path="configs/train", config_name="config.yaml")
 def main(cfg: omegaconf.DictConfig):
-
     # Multi-gpu training
     if cfg.num_gpus > 1:
         # Select a port for proc group init randomly
