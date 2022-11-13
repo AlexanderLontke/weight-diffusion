@@ -10,8 +10,6 @@ from Gpt.utils import (
 )
 from Gpt.meters import TrainMeter
 
-from wrapper_model import WrapperModel
-
 
 def train(config):
     # TODO needed? Set manual seed
@@ -44,7 +42,6 @@ def train(config):
 
     # TODO GPU training
     # TODO construct required sub-models and pass them on
-    model = WrapperModel()
 
 
 @hydra.main(config_path="../../../configs/train", config_name="config.yaml")
