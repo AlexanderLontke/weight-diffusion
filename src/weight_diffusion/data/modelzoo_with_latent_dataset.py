@@ -202,6 +202,7 @@ class ModelZooDataset(Dataset):
             self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep"
         )
 
+        # Fetch latent representation from storage or generate a new one and save it
         if os.path.isfile(checkpoint_latent_rep_path):
             checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
         else:
