@@ -105,6 +105,7 @@ class ModelZooDataset(Dataset):
 
         # Get all model directories and perform train_val_test split
         model_directory_paths = perform_train_test_validation_split(
+            # TODO Remove [:15]
             list_to_split=get_all_directories_for_a_path(data_dir)[:15],
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
@@ -168,6 +169,8 @@ class ModelZooDataset(Dataset):
                 permutation_mode=permutation_mode,
             )
 
+        # TODO del self.encoder
+
     def __getitem__(self, index) -> T_co:
         model_key, checkpoint_key = self.index_dict[index]
         checkpoint = self.checkpoints_dict[model_key][checkpoint_key]
@@ -187,6 +190,7 @@ class ModelZooDataset(Dataset):
             self.data_dir, model_directory, checkpoint_directory, "checkpoints"
         )
         checkpoint = torch.load(checkpoint_path)
+        # TODO Add permutations self.permutation.permute_checkpoint(checkpoint)
         flattened_checkpoint = get_flat_params(checkpoint)
 
         # Store Min and Max parameter value for later
@@ -207,6 +211,7 @@ class ModelZooDataset(Dataset):
             checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
         else:
             # Need to convert from checkpoint to a list of checkpoints
+            # TODO torch.unsqueeze(x, dim=0)
             flattened_checkpoint = torch.tensor([flattened_checkpoint.tolist()])
             with torch.no_grad():
                 checkpoint_latent_rep, _ = self.encoder.forward(flattened_checkpoint.to(self.device))
