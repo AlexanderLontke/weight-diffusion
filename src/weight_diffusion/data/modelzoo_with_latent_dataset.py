@@ -1,24 +1,26 @@
-import os
-import json
 import csv
+import json
+import os
+from pathlib import Path
 from typing import Tuple, List, Dict, Union, Callable
-from tqdm import tqdm
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from pathlib import Path
 from torch.utils.data.dataset import T_co
+from torch import nn
+from tqdm import tqdm
 
-from weight_diffusion.data.data_utils.normalization import get_normalizer
 from weight_diffusion.data.data_utils.helper import get_flat_params
-from weight_diffusion.data.data_utils.permutation import Permutation
 from weight_diffusion.data.data_utils.helper import perform_train_test_validation_split
+from weight_diffusion.data.data_utils.normalization import get_normalizer
+from weight_diffusion.data.data_utils.permutation import Permutation
 
 
 def get_all_directories_for_a_path(
-    path: Path,
-    return_only_directories: bool = True,
-    return_no_hidden_directories: bool = True,
+        path: Path,
+        return_only_directories: bool = True,
+        return_no_hidden_directories: bool = True,
 ):
     result = os.listdir(path)
     if return_only_directories:
@@ -45,7 +47,7 @@ def _guess_dtype(x):
 
 
 def parse_progress_csv(
-    path_to_progress_csv: Path,
+        path_to_progress_csv: Path,
 ) -> Dict[int, Dict[str, Union[str, bool, float]]]:
     """
     To know what the training/test loss/other metrics looked like at each checkpoint
@@ -65,19 +67,19 @@ def parse_progress_csv(
 
 class ModelZooDataset(Dataset):
     def __init__(
-        self,
-        data_dir: Path,
-        checkpoint_property_of_interest: str,
-        split: str,
-        dataset_split_ratios: List[float] = None,
-        openai_coefficient: float = 4.185,
-        normalizer_name="openai",
-        use_permutation: bool = True,
-        permute_layers: Union[List[int], str] = "all",
-        number_of_permutations: int = 10,
-        permutation_mode="random",
-        device=None,
-        module=None
+            self,
+            data_dir: Path,
+            checkpoint_property_of_interest: str,
+            split: str,
+            encoder: nn.Module,
+            device: torch.device,
+            dataset_split_ratios: List[float] = None,
+            openai_coefficient: float = 4.185,
+            normalizer_name="openai",
+            use_permutation: bool = True,
+            permute_layers: Union[List[int], str] = "all",
+            number_of_permutations: int = 10,
+            permutation_mode="random"
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -85,7 +87,7 @@ class ModelZooDataset(Dataset):
         self.split = split
 
         self.device = device
-        self.module = module
+        self.encoder = encoder
 
         # Initialize dataset attributes
         self.min_parameter_value = np.Inf
@@ -123,7 +125,7 @@ class ModelZooDataset(Dataset):
         self.index_dict = {}  # Dict[index nr.] = (model Nr., Checkpoint Nr.)
         self.count = 0
         for model_key, checkpoints_dict in tqdm(
-            self.checkpoints_dict.items(), desc="Indexing dataset"
+                self.checkpoints_dict.items(), desc="Indexing dataset"
         ):
             n_checkpoints = len(checkpoints_dict.keys())
             for i in range(n_checkpoints):
@@ -152,9 +154,7 @@ class ModelZooDataset(Dataset):
         if permute_layers == "all":
             permute_layers = [
                 layer_id
-                for layer_id, layer_type in self.layer_list[
-                    :-1
-                ]  # Can't permute last layer
+                for layer_id, layer_type in self.layer_list[:-1]  # Can't permute last layer
             ]
         self.permute_layers = permute_layers
 
@@ -180,7 +180,7 @@ class ModelZooDataset(Dataset):
 
     # parsing methods
     def _parse_checkpoint_directory(
-        self, checkpoint_directory, model_directory
+            self, checkpoint_directory, model_directory
     ) -> Tuple[int, torch.Tensor, torch.Tensor]:
 
         checkpoint_path = os.path.join(
@@ -208,14 +208,13 @@ class ModelZooDataset(Dataset):
             # Need to convert from checkpoint to a list of checkpoints
             flattened_checkpoint = torch.tensor([flattened_checkpoint.tolist()])
             with torch.no_grad():
-                checkpoint_latent_rep, _ = self.module.forward(flattened_checkpoint.to(self.device))
+                checkpoint_latent_rep, _ = self.encoder.forward(flattened_checkpoint.to(self.device))
             torch.save(checkpoint_latent_rep, checkpoint_latent_rep_path)
-            print('Saved', checkpoint_latent_rep_path)
 
         return int(checkpoint_directory[-6:]), checkpoint, checkpoint_latent_rep
 
     def _parse_model_directory(
-        self, model_directory
+            self, model_directory
     ) -> Tuple[Dict[int, Tuple[torch.Tensor, torch.Tensor]], Dict[int, Dict[str, Union[str, bool, float]]]]:
         model_directory_dict = {}
         model_progress_dict = parse_progress_csv(
@@ -225,7 +224,7 @@ class ModelZooDataset(Dataset):
         )
 
         for checkpoint_directory in get_all_directories_for_a_path(
-            self.data_dir.joinpath(model_directory)
+                self.data_dir.joinpath(model_directory)
         ):
             checkpoint_key, checkpoint, checkpoint_latent_rep = self._parse_checkpoint_directory(
                 checkpoint_directory,
