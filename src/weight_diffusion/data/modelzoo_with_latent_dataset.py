@@ -111,6 +111,14 @@ class ModelZooDataset(Dataset):
             split=self.split,
         )
 
+        # Prepare permutation
+        if permute_layers == "all":
+            permute_layers = [
+                layer_id
+                for layer_id, layer_type in self.layer_list[:-1]  # Can't permute last layer
+            ]
+        self.permute_layers = permute_layers
+
         # Load model checkpoints
         self.checkpoints_dict = {}  # Dict[Model Nr.][Checkpoint Nr.] = model_state_dict
         self.checkpoint_metrics_dict = {}
@@ -151,29 +159,12 @@ class ModelZooDataset(Dataset):
             self.normalizer_name, openai_coeff=self.openai_coefficient
         )
 
-        # Prepare permutation
-        if permute_layers == "all":
-            permute_layers = [
-                layer_id
-                for layer_id, layer_type in self.layer_list[:-1]  # Can't permute last layer
-            ]
-        self.permute_layers = permute_layers
-
-        # Initialize permutation
-        if use_permutation:
-            self.permutation = Permutation(
-                checkpoint_sample=self.data_sample[0],
-                layers_to_permute=self.permute_layers,
-                layer_lst=self.layer_list,
-                number_of_permutations=number_of_permutations,
-                permutation_mode=permutation_mode,
-            )
-
-        # TODO del self.encoder
+        # Delete encoder from memory to free up space
+        del self.encoder
 
     def __getitem__(self, index) -> T_co:
         model_key, checkpoint_key = self.index_dict[index]
-        checkpoint = self.checkpoints_dict[model_key][checkpoint_key]
+        checkpoint = self.checkpoints_dict[model_key][checkpoint_key][0]
         if self.use_permutation:
             checkpoint = self.permutation.permute_checkpoint(checkpoint=checkpoint)
         return checkpoint
@@ -190,7 +181,6 @@ class ModelZooDataset(Dataset):
             self.data_dir, model_directory, checkpoint_directory, "checkpoints"
         )
         checkpoint = torch.load(checkpoint_path)
-        # TODO Add permutations self.permutation.permute_checkpoint(checkpoint)
         flattened_checkpoint = get_flat_params(checkpoint)
 
         # Store Min and Max parameter value for later
@@ -202,20 +192,37 @@ class ModelZooDataset(Dataset):
         if self.max_parameter_value < max_parameter_in_cp:
             self.max_parameter_value = max_parameter_in_cp
 
-        checkpoint_latent_rep_path = os.path.join(
-            self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep"
+        self.permutation = Permutation(
+            checkpoint_sample=checkpoint,
+            layers_to_permute=self.permute_layers,
+            layer_lst=self.layer_list,
+            number_of_permutations=10,
+            permutation_mode="random",
         )
 
-        # Fetch latent representation from storage or generate a new one and save it
-        if os.path.isfile(checkpoint_latent_rep_path):
-            checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
-        else:
-            # Need to convert from checkpoint to a list of checkpoints
-            # TODO torch.unsqueeze(x, dim=0)
-            flattened_checkpoint = torch.tensor([flattened_checkpoint.tolist()])
-            with torch.no_grad():
-                checkpoint_latent_rep, _ = self.encoder.forward(flattened_checkpoint.to(self.device))
-            torch.save(checkpoint_latent_rep, checkpoint_latent_rep_path)
+        for i in range(10):
+            checkpoint_latent_rep_path = os.path.join(
+                self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep"
+            )
+
+            print(i)
+            print(checkpoint_latent_rep_path)
+
+            if i > 0:
+                checkpoint = self.permutation.permute_checkpoint(checkpoint)
+                permuted_checkpoint_path = os.path.join(checkpoint_path + "_p" + str(i))
+                torch.save(checkpoint, permuted_checkpoint_path)
+
+                checkpoint_latent_rep_path = os.path.join(checkpoint_latent_rep_path + "_p" + str(i))
+
+            # Fetch latent representation from storage or generate a new one and save it
+            if os.path.isfile(checkpoint_latent_rep_path):
+                checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
+            else:
+                # Need to convert from checkpoint to a list of checkpoints
+                with torch.no_grad():
+                    checkpoint_latent_rep, _ = self.encoder.forward(torch.unsqueeze(flattened_checkpoint, dim=0).to(self.device))
+                torch.save(checkpoint_latent_rep, checkpoint_latent_rep_path)
 
         return int(checkpoint_directory[-6:]), checkpoint, checkpoint_latent_rep
 

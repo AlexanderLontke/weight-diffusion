@@ -291,9 +291,10 @@ class Permutation:
     def permute_checkpoint(self, checkpoint):
         if self.number_of_permutations > 0:
             # get permutation index -> pick random number from available perms
+            print(len(self.permutations_dct_lst))
             pdx = random.randint(0, self.number_of_permutations)
             # perform actual permutation
-
+            print(pdx)
             # get perm dict
             prmt_dct = self.permutations_dct_lst[pdx]
 
