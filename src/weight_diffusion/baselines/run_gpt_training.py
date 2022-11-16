@@ -396,7 +396,7 @@ def single_proc_train(local_rank, port, world_size, cfg):
     exit()
 
 
-@hydra.main(config_path="configs/train", config_name="config.yaml")
+@hydra.main(config_path="../../../configs/train", config_name="config.yaml")
 def main(cfg: omegaconf.DictConfig):
     # Multi-gpu training
     if cfg.num_gpus > 1:
