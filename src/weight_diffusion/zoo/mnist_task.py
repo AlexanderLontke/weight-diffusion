@@ -47,7 +47,7 @@ class CNN(nn.Module):
         self.initialize_weights(init_type)
 
     def initialize_weights(self, init_type):
-        print("initialze model")
+        # print("initialze model")
         for m in self.module_list:
             if type(m) == nn.Linear or type(m) == nn.Conv2d:
                 if init_type == "xavier_uniform":
