@@ -33,7 +33,7 @@ from Gpt.utils import (
 )
 from Gpt.distributed import get_rank, get_world_size, is_main_proc, synchronize
 from weight_diffusion.baselines.vis import VisMonitor
-from Gpt.tasks import get
+from weight_diffusion.baselines.tasks import get
 from Gpt.download import find_model
 
 from weight_diffusion.data.gpt_dataset import GptDataset
