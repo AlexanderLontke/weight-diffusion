@@ -2,7 +2,7 @@ amp: false
 rng_seed: 0
 num_gpus: 1
 out_dir: results
-exp_name: local_mnist_loss
+exp_name: dgx2_zoo_mnist
 resume_path: null
 test_only: false
 debug_mode: false
