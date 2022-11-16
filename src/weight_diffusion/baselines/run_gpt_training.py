@@ -32,7 +32,7 @@ from Gpt.utils import (
     requires_grad,
 )
 from Gpt.distributed import get_rank, get_world_size, is_main_proc, synchronize
-from Gpt.vis import VisMonitor
+from weight_diffusion.baselines.vis import VisMonitor
 from Gpt.tasks import get
 from Gpt.download import find_model
 
