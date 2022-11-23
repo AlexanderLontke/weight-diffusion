@@ -98,7 +98,7 @@ class ModelZooDataset(Dataset):
 
         # Get all model directories and perform train_val_test split
         model_directory_paths = perform_train_test_validation_split(
-            list_to_split=get_all_directories_for_a_path(data_dir)[:15],
+            list_to_split=get_all_directories_for_a_path(data_dir),
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
         )
