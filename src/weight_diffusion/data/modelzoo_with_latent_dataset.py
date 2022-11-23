@@ -16,13 +16,15 @@ from weight_diffusion.data.data_utils.helper import perform_train_test_validatio
 from weight_diffusion.data.data_utils.normalization import get_normalizer
 from weight_diffusion.data.data_utils.permutation import Permutation
 
+from ldm.util import instantiate_from_config
+
 
 def get_all_directories_for_a_path(
-        path: Path,
-        return_only_directories: bool = True,
-        return_no_hidden_directories: bool = True,
-):
-    result = os.listdir(path)
+    path: Path,
+    return_only_directories: bool = True,
+    return_no_hidden_directories: bool = True,
+) -> list[str]:
+    result: list[str] = os.listdir(path)
     if return_only_directories:
         result = [
             directory
@@ -47,7 +49,7 @@ def _guess_dtype(x):
 
 
 def parse_progress_csv(
-        path_to_progress_csv: Path,
+    path_to_progress_csv: Path,
 ) -> Dict[int, Dict[str, Union[str, bool, float]]]:
     """
     To know what the training/test loss/other metrics looked like at each checkpoint
@@ -67,29 +69,31 @@ def parse_progress_csv(
 
 class ModelZooWithLatentDataset(Dataset):
     def __init__(
-            self,
-            data_dir: Path,
-            checkpoint_property_of_interest: str,
-            split: str,
-            encoder: nn.Module,
-            device: torch.device,
-            tokenizer,
-            dataset_split_ratios: List[float] = None,
-            openai_coefficient: float = 4.185,
-            normalizer_name="openai",
-            use_permutation: bool = True,
-            permute_layers: Union[List[int], str] = "all",
-            number_of_permutations: int = 10,
-            permutation_mode="random"
+        self,
+        data_dir: str,
+        checkpoint_property_of_interest: str,
+        split: str,
+        encoder_config: Dict,
+        device: torch.device,
+        tokenizer_config: Dict,
+        dataset_split_ratios: List[int] = None,
+        openai_coefficient: float = 4.185,
+        normalizer_name="openai",
+        use_permutation: bool = True,
+        permute_layers: Union[List[int], str] = "all",
+        prompt_embedding_max_length: int = 77,
+        number_of_permutations: int = 10,
+        permutation_mode="random",
     ):
         super().__init__()
-        self.data_dir = data_dir
+        self.data_dir = Path(data_dir)
         self.use_permutation = use_permutation
         self.split = split
 
         self.device = device
-        self.encoder = encoder
-        self.tokenizer = tokenizer
+        self.encoder = instantiate_from_config(encoder_config)
+        self.tokenizer = instantiate_from_config(tokenizer_config)
+        self.prompt_embedding_max_length = prompt_embedding_max_length
 
         # Initialize dataset attributes
         self.min_parameter_value = np.Inf
@@ -101,14 +105,15 @@ class ModelZooWithLatentDataset(Dataset):
         self.dataset_split_ratios = dataset_split_ratios
 
         # Load model architecture
-        with open(data_dir.joinpath("index_dict.json")) as model_json:
+        with open(self.data_dir.joinpath("index_dict.json")) as model_json:
             self.model_config = json.load(model_json)
         self.layer_list = self.model_config["layer"]
 
         # Get all model directories and perform train_val_test split
+        self.first_checkpoint = True
         model_directory_paths = perform_train_test_validation_split(
             # TODO Remove [:15]
-            list_to_split=get_all_directories_for_a_path(data_dir)[15:30],
+            list_to_split=get_all_directories_for_a_path(self.data_dir)[40:50],
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
         )
@@ -117,7 +122,9 @@ class ModelZooWithLatentDataset(Dataset):
         if permute_layers == "all":
             permute_layers = [
                 layer_id
-                for layer_id, layer_type in self.layer_list[:-1]  # Can't permute last layer
+                for layer_id, layer_type in self.layer_list[
+                    :-1
+                ]  # Can't permute last layer
             ]
         self.permute_layers = permute_layers
 
@@ -136,10 +143,10 @@ class ModelZooWithLatentDataset(Dataset):
         self.index_dict = {}  # Dict[index nr.] = (model Nr., Checkpoint Nr.)
         self.count = 0
         for model_key, checkpoints_dict in tqdm(
-                self.checkpoints_dict.items(), desc="Indexing dataset"
+            self.checkpoints_dict.items(), desc="Indexing dataset"
         ):
             n_checkpoints = len(checkpoints_dict.keys())
-            for i in range(n_checkpoints):
+            for i in range(1, n_checkpoints):
                 self.index_dict[self.count] = (model_key, i)
                 self.count += 1
 
@@ -170,14 +177,17 @@ class ModelZooWithLatentDataset(Dataset):
         checkpoint_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][0]
         prompt_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][1]
 
-        return {"checkpoint_latent": checkpoint_latent_rep, "prompt_latent": prompt_latent_rep}
+        return {
+            "checkpoint_latent": checkpoint_latent_rep,
+            "prompt_latent": prompt_latent_rep,
+        }
 
     def __len__(self):
         return self.count
 
     # parsing methods
     def _parse_checkpoint_directory(
-            self, checkpoint_directory, model_directory, model_progress_dict
+        self, checkpoint_directory, model_directory, model_progress_dict
     ) -> Tuple[int, torch.Tensor, torch.Tensor]:
 
         checkpoint_path = os.path.join(
@@ -198,14 +208,20 @@ class ModelZooWithLatentDataset(Dataset):
         if os.path.isfile(prompt_latent_rep_path):
             prompt_latent_rep = torch.load(prompt_latent_rep_path)
         else:
-            prompt = f"The training loss is {checkpoint_progress['train_loss']:.4g}. " \
-                     f"The training accuracy is {checkpoint_progress['train_acc']:.4g}. " \
-                     f"The validation loss is {checkpoint_progress['validation_loss']:.4g}. " \
-                     f"The validation accuracy is {checkpoint_progress['validation_acc']:.4g}. " \
-                     f"The test loss is {checkpoint_progress['test_loss']:.4g}. " \
-                     f"The test accuracy is {checkpoint_progress['test_acc']:.4g}. "
-
-            prompt_latent_rep = self.tokenizer(prompt, return_tensors='pt')["input_ids"]
+            prompt = (
+                f"The training loss is {checkpoint_progress['train_loss']:.4g}. "
+                f"The training accuracy is {checkpoint_progress['train_acc']:.4g}. "
+                f"The validation loss is {checkpoint_progress['validation_loss']:.4g}. "
+                f"The validation accuracy is {checkpoint_progress['validation_acc']:.4g}. "
+                f"The test loss is {checkpoint_progress['test_loss']:.4g}. "
+                f"The test accuracy is {checkpoint_progress['test_acc']:.4g}. "
+            )
+            prompt_latent_rep = self.tokenizer(
+                prompt,
+                max_length=self.prompt_embedding_max_length,
+                return_tensors="pt",
+                padding="max_length",
+            )["input_ids"]
             torch.save(prompt_latent_rep, prompt_latent_rep_path)
 
         # Store Min and Max parameter value for later
@@ -217,7 +233,9 @@ class ModelZooWithLatentDataset(Dataset):
         if self.max_parameter_value < max_parameter_in_cp:
             self.max_parameter_value = max_parameter_in_cp
 
-        permuted_checkpoints = self.permutation.get_all_permutations_for_checkpoint(checkpoint)
+        permuted_checkpoints = self.permutation.get_all_permutations_for_checkpoint(
+            checkpoint
+        )
 
         for i in range(len(permuted_checkpoints)):
 
@@ -230,7 +248,10 @@ class ModelZooWithLatentDataset(Dataset):
                 torch.save(permuted_checkpoint, permuted_checkpoint_path)
 
             checkpoint_latent_rep_path = os.path.join(
-                self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep" + "_p" + str(i)
+                self.data_dir,
+                model_directory,
+                checkpoint_directory,
+                "checkpoints_latent_rep" + "_p" + str(i),
             )
 
             # Fetch latent representation from storage or generate a new one and save it
@@ -240,33 +261,32 @@ class ModelZooWithLatentDataset(Dataset):
                 # Need to convert from checkpoint to a list of checkpoints
                 with torch.no_grad():
                     checkpoint_latent_rep, _ = self.encoder.forward(
-                        torch.unsqueeze(flattened_checkpoint, dim=0).to(self.device))
+                        torch.unsqueeze(flattened_checkpoint, dim=0).to(self.device),
+                    )
                 torch.save(checkpoint_latent_rep, checkpoint_latent_rep_path)
 
         return checkpoint_key, checkpoint_latent_rep, prompt_latent_rep
 
     def _parse_model_directory(
-            self, model_directory
-    ) -> Tuple[Dict[int, Tuple[torch.Tensor, torch.Tensor]], Dict[int, Dict[str, Union[str, bool, float]]]]:
+        self, model_directory
+    ) -> Tuple[
+        Dict[int, Tuple[torch.Tensor, torch.Tensor]],
+        Dict[int, Dict[str, Union[str, bool, float]]],
+    ]:
         model_directory_dict = {}
         model_progress_dict = parse_progress_csv(
             path_to_progress_csv=self.data_dir.joinpath(model_directory).joinpath(
                 "progress.csv"
             )
         )
-
-        first = True
-
         for checkpoint_directory in get_all_directories_for_a_path(
-                self.data_dir.joinpath(model_directory)
+            self.data_dir.joinpath(model_directory)
         ):
-
-            if first:
-                checkpoint_path = os.path.join(
-                    self.data_dir, model_directory, checkpoint_directory, "checkpoints"
+            if self.first_checkpoint:
+                checkpoint_path = self.data_dir.joinpath(
+                    model_directory, checkpoint_directory, "checkpoints"
                 )
                 sample_checkpoint = torch.load(checkpoint_path)
-
                 self.permutation = Permutation(
                     checkpoint_sample=sample_checkpoint,
                     layers_to_permute=self.permute_layers,
@@ -274,17 +294,19 @@ class ModelZooWithLatentDataset(Dataset):
                     number_of_permutations=10,
                     permutation_mode="random",
                 )
-
-                first = False
-
-            checkpoint_key, checkpoint_latent_rep, prompt_latent_rep = self._parse_checkpoint_directory(
-                checkpoint_directory,
-                model_directory,
-                model_progress_dict
+                self.first_checkpoint = False
+            (
+                checkpoint_key,
+                checkpoint_latent_rep,
+                prompt_latent_rep,
+            ) = self._parse_checkpoint_directory(
+                checkpoint_directory, model_directory, model_progress_dict
             )
-
             if checkpoint_key in model_progress_dict.keys():
-                model_directory_dict[checkpoint_key] = (checkpoint_latent_rep, prompt_latent_rep)
+                model_directory_dict[checkpoint_key] = (
+                    checkpoint_latent_rep,
+                    prompt_latent_rep,
+                )
             else:
                 continue
         return model_directory_dict, model_progress_dict

@@ -7,9 +7,14 @@ define net
 ##############################################################################
 """
 
+
 class CNN(nn.Module):
     def __init__(
-        self, channels_in, nlin="leakyrelu", dropout=0.2, init_type="uniform",
+        self,
+        channels_in,
+        nlin="leakyrelu",
+        dropout=0.2,
+        init_type="uniform",
     ):
         super().__init__()
         # init module list
@@ -110,4 +115,3 @@ def test_step(input, target, model: nn.Module):
         _, predicted = torch.max(output.data, 1)
         correct = (predicted == target).sum().item()
         return loss.item(), correct
-

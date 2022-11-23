@@ -41,17 +41,19 @@ TASK_METADATA = {
         "aug_fn": data_gen.train_mnist.random_permute_mlp,
         "minimize": True,
         "best_prompt": 0.0,
-        "recursive_prompt": 0.0
+        "recursive_prompt": 0.0,
     },
     "zoo_mnist": {
         "task_test_fn": mnist_task.test_step,
-        "constructor": lambda: mnist_task.CNN(channels_in=1, nlin="tanh", dropout=0.0, init_type="uniform"),
+        "constructor": lambda: mnist_task.CNN(
+            channels_in=1, nlin="tanh", dropout=0.0, init_type="uniform"
+        ),
         "data_fn": data_gen.train_mnist.unload_test_set,
         # "aug_fn": None,
         "minimize": True,
         "best_prompt": 0.0,
-        "recursive_prompt": 0.0
-    }
+        "recursive_prompt": 0.0,
+    },
 }
 
 

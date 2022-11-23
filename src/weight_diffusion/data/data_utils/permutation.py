@@ -103,7 +103,7 @@ def permute_checkpoint(checkpoint, layer_lst, permute_layers, permutation_idxs_d
                     # flatting happens within channels first.
                     # channel outputs must be devider of fc dim[1]
                     assert (
-                            int(weight_next.shape[1]) % int(layer_kernels[kdx]) == 0
+                        int(weight_next.shape[1]) % int(layer_kernels[kdx]) == 0
                     ), "divider must be of type integer, dimensions don't add up"
 
                     fc_block_length = int(
@@ -130,7 +130,7 @@ def permute_checkpoint(checkpoint, layer_lst, permute_layers, permutation_idxs_d
 
 
 def create_random_permutation_index(
-        layers_to_permute: List[int], layer_kernels: List[int], number_of_permutations: int
+    layers_to_permute: List[int], layer_kernels: List[int], number_of_permutations: int
 ):
     permutations_dct = {}
     for kdx, layer in enumerate(layers_to_permute):
@@ -155,7 +155,7 @@ def create_random_permutation_index(
 
 
 def create_complete_permutation_index(
-        layers_to_permute: List[int], layer_kernels: List[int]
+    layers_to_permute: List[int], layer_kernels: List[int]
 ):
     permutations_dct = {}
     for kdx, layer in enumerate(layers_to_permute):
@@ -172,12 +172,12 @@ def create_complete_permutation_index(
 
 class Permutation:
     def __init__(
-            self,
-            layers_to_permute,
-            checkpoint_sample,
-            layer_lst,
-            number_of_permutations: int,
-            permutation_mode: str,
+        self,
+        layers_to_permute,
+        checkpoint_sample,
+        layer_lst,
+        number_of_permutations: int,
+        permutation_mode: str,
     ):
         """
         This function creates self.permutations_dct, a dictionary with mappings for all permutations.
@@ -314,12 +314,14 @@ class Permutation:
         permuted_checkpoints = [checkpoint]
         for prmt_dct in self.permutations_dct_lst:
             # apply permutation on input data
-            permuted_checkpoints.append(permute_checkpoint(
-                copy.deepcopy(checkpoint),
-                self.layer_lst,
-                self.layers_to_permute,
-                prmt_dct,
-            ))
+            permuted_checkpoints.append(
+                permute_checkpoint(
+                    copy.deepcopy(checkpoint),
+                    self.layer_lst,
+                    self.layers_to_permute,
+                    prmt_dct,
+                )
+            )
 
         # append data to permuted list
         return permuted_checkpoints
