@@ -6,9 +6,9 @@ from typing import Tuple, List, Dict, Union, Callable
 
 import numpy as np
 import torch
+from torch import nn
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
-from torch import nn
 from tqdm import tqdm
 
 from weight_diffusion.data.data_utils.helper import get_flat_params
@@ -58,14 +58,14 @@ def parse_progress_csv(
         reader = csv.reader(in_file)
         header = reader.__next__()
         progress_dict = {}
-        count = 0
+        count = 1
         for row in reader:
             progress_dict[count] = {k: _guess_dtype(v) for k, v in zip(header, row)}
             count += 1
     return progress_dict
 
 
-class ModelZooDataset(Dataset):
+class ModelZooWithLatentDataset(Dataset):
     def __init__(
             self,
             data_dir: Path,
@@ -73,6 +73,7 @@ class ModelZooDataset(Dataset):
             split: str,
             encoder: nn.Module,
             device: torch.device,
+            tokenizer,
             dataset_split_ratios: List[float] = None,
             openai_coefficient: float = 4.185,
             normalizer_name="openai",
@@ -88,6 +89,7 @@ class ModelZooDataset(Dataset):
 
         self.device = device
         self.encoder = encoder
+        self.tokenizer = tokenizer
 
         # Initialize dataset attributes
         self.min_parameter_value = np.Inf
@@ -106,7 +108,7 @@ class ModelZooDataset(Dataset):
         # Get all model directories and perform train_val_test split
         model_directory_paths = perform_train_test_validation_split(
             # TODO Remove [:15]
-            list_to_split=get_all_directories_for_a_path(data_dir)[:15],
+            list_to_split=get_all_directories_for_a_path(data_dir)[15:30],
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
         )
@@ -161,20 +163,21 @@ class ModelZooDataset(Dataset):
 
         # Delete encoder from memory to free up space
         del self.encoder
+        del self.tokenizer
 
     def __getitem__(self, index) -> T_co:
         model_key, checkpoint_key = self.index_dict[index]
-        checkpoint = self.checkpoints_dict[model_key][checkpoint_key][0]
-        if self.use_permutation:
-            checkpoint = self.permutation.permute_checkpoint(checkpoint=checkpoint)
-        return checkpoint
+        checkpoint_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][0]
+        prompt_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][1]
+
+        return {"checkpoint_latent": checkpoint_latent_rep, "prompt_latent": prompt_latent_rep}
 
     def __len__(self):
         return self.count
 
     # parsing methods
     def _parse_checkpoint_directory(
-            self, checkpoint_directory, model_directory
+            self, checkpoint_directory, model_directory, model_progress_dict
     ) -> Tuple[int, torch.Tensor, torch.Tensor]:
 
         checkpoint_path = os.path.join(
@@ -182,6 +185,28 @@ class ModelZooDataset(Dataset):
         )
         checkpoint = torch.load(checkpoint_path)
         flattened_checkpoint = get_flat_params(checkpoint)
+        checkpoint_key = int(checkpoint_directory[-6:])
+        if checkpoint_key == 0:
+            return 0, torch.Tensor(), torch.Tensor()
+        checkpoint_progress = model_progress_dict[checkpoint_key]
+
+        prompt_latent_rep_path = os.path.join(
+            self.data_dir, model_directory, checkpoint_directory, "prompt_latent_rep"
+        )
+
+        # Fetch latent representation from storage or generate a new one and save it
+        if os.path.isfile(prompt_latent_rep_path):
+            prompt_latent_rep = torch.load(prompt_latent_rep_path)
+        else:
+            prompt = f"The training loss is {checkpoint_progress['train_loss']:.4g}. " \
+                     f"The training accuracy is {checkpoint_progress['train_acc']:.4g}. " \
+                     f"The validation loss is {checkpoint_progress['validation_loss']:.4g}. " \
+                     f"The validation accuracy is {checkpoint_progress['validation_acc']:.4g}. " \
+                     f"The test loss is {checkpoint_progress['test_loss']:.4g}. " \
+                     f"The test accuracy is {checkpoint_progress['test_acc']:.4g}. "
+
+            prompt_latent_rep = self.tokenizer(prompt, return_tensors='pt')["input_ids"]
+            torch.save(prompt_latent_rep, prompt_latent_rep_path)
 
         # Store Min and Max parameter value for later
         min_parameter_in_cp, max_parameter_in_cp = (
@@ -192,28 +217,21 @@ class ModelZooDataset(Dataset):
         if self.max_parameter_value < max_parameter_in_cp:
             self.max_parameter_value = max_parameter_in_cp
 
-        self.permutation = Permutation(
-            checkpoint_sample=checkpoint,
-            layers_to_permute=self.permute_layers,
-            layer_lst=self.layer_list,
-            number_of_permutations=10,
-            permutation_mode="random",
-        )
+        permuted_checkpoints = self.permutation.get_all_permutations_for_checkpoint(checkpoint)
 
-        for i in range(10):
+        for i in range(len(permuted_checkpoints)):
+
+            permuted_checkpoint = permuted_checkpoints[i]
+            permuted_checkpoint_path = os.path.join(checkpoint_path + "_p" + str(i))
+
+            if os.path.isfile(permuted_checkpoint_path):
+                permuted_checkpoint = torch.load(permuted_checkpoint_path)
+            else:
+                torch.save(permuted_checkpoint, permuted_checkpoint_path)
+
             checkpoint_latent_rep_path = os.path.join(
-                self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep"
+                self.data_dir, model_directory, checkpoint_directory, "checkpoints_latent_rep" + "_p" + str(i)
             )
-
-            print(i)
-            print(checkpoint_latent_rep_path)
-
-            if i > 0:
-                checkpoint = self.permutation.permute_checkpoint(checkpoint)
-                permuted_checkpoint_path = os.path.join(checkpoint_path + "_p" + str(i))
-                torch.save(checkpoint, permuted_checkpoint_path)
-
-                checkpoint_latent_rep_path = os.path.join(checkpoint_latent_rep_path + "_p" + str(i))
 
             # Fetch latent representation from storage or generate a new one and save it
             if os.path.isfile(checkpoint_latent_rep_path):
@@ -221,10 +239,11 @@ class ModelZooDataset(Dataset):
             else:
                 # Need to convert from checkpoint to a list of checkpoints
                 with torch.no_grad():
-                    checkpoint_latent_rep, _ = self.encoder.forward(torch.unsqueeze(flattened_checkpoint, dim=0).to(self.device))
+                    checkpoint_latent_rep, _ = self.encoder.forward(
+                        torch.unsqueeze(flattened_checkpoint, dim=0).to(self.device))
                 torch.save(checkpoint_latent_rep, checkpoint_latent_rep_path)
 
-        return int(checkpoint_directory[-6:]), checkpoint, checkpoint_latent_rep
+        return checkpoint_key, checkpoint_latent_rep, prompt_latent_rep
 
     def _parse_model_directory(
             self, model_directory
@@ -236,15 +255,36 @@ class ModelZooDataset(Dataset):
             )
         )
 
+        first = True
+
         for checkpoint_directory in get_all_directories_for_a_path(
                 self.data_dir.joinpath(model_directory)
         ):
-            checkpoint_key, checkpoint, checkpoint_latent_rep = self._parse_checkpoint_directory(
+
+            if first:
+                checkpoint_path = os.path.join(
+                    self.data_dir, model_directory, checkpoint_directory, "checkpoints"
+                )
+                sample_checkpoint = torch.load(checkpoint_path)
+
+                self.permutation = Permutation(
+                    checkpoint_sample=sample_checkpoint,
+                    layers_to_permute=self.permute_layers,
+                    layer_lst=self.layer_list,
+                    number_of_permutations=10,
+                    permutation_mode="random",
+                )
+
+                first = False
+
+            checkpoint_key, checkpoint_latent_rep, prompt_latent_rep = self._parse_checkpoint_directory(
                 checkpoint_directory,
                 model_directory,
+                model_progress_dict
             )
+
             if checkpoint_key in model_progress_dict.keys():
-                model_directory_dict[checkpoint_key] = (checkpoint, checkpoint_latent_rep)
+                model_directory_dict[checkpoint_key] = (checkpoint_latent_rep, prompt_latent_rep)
             else:
                 continue
         return model_directory_dict, model_progress_dict

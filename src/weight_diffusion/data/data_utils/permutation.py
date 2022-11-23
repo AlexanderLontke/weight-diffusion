@@ -1,9 +1,10 @@
-import torch
 import copy
 import itertools
 import random
 from math import factorial
 from typing import List
+
+import torch
 
 
 def permute_checkpoint(checkpoint, layer_lst, permute_layers, permutation_idxs_dct):
@@ -102,7 +103,7 @@ def permute_checkpoint(checkpoint, layer_lst, permute_layers, permutation_idxs_d
                     # flatting happens within channels first.
                     # channel outputs must be devider of fc dim[1]
                     assert (
-                        int(weight_next.shape[1]) % int(layer_kernels[kdx]) == 0
+                            int(weight_next.shape[1]) % int(layer_kernels[kdx]) == 0
                     ), "divider must be of type integer, dimensions don't add up"
 
                     fc_block_length = int(
@@ -129,7 +130,7 @@ def permute_checkpoint(checkpoint, layer_lst, permute_layers, permutation_idxs_d
 
 
 def create_random_permutation_index(
-    layers_to_permute: List[int], layer_kernels: List[int], number_of_permutations: int
+        layers_to_permute: List[int], layer_kernels: List[int], number_of_permutations: int
 ):
     permutations_dct = {}
     for kdx, layer in enumerate(layers_to_permute):
@@ -154,7 +155,7 @@ def create_random_permutation_index(
 
 
 def create_complete_permutation_index(
-    layers_to_permute: List[int], layer_kernels: List[int]
+        layers_to_permute: List[int], layer_kernels: List[int]
 ):
     permutations_dct = {}
     for kdx, layer in enumerate(layers_to_permute):
@@ -171,12 +172,12 @@ def create_complete_permutation_index(
 
 class Permutation:
     def __init__(
-        self,
-        layers_to_permute,
-        checkpoint_sample,
-        layer_lst,
-        number_of_permutations: int,
-        permutation_mode: str,
+            self,
+            layers_to_permute,
+            checkpoint_sample,
+            layer_lst,
+            number_of_permutations: int,
+            permutation_mode: str,
     ):
         """
         This function creates self.permutations_dct, a dictionary with mappings for all permutations.
@@ -291,10 +292,10 @@ class Permutation:
     def permute_checkpoint(self, checkpoint):
         if self.number_of_permutations > 0:
             # get permutation index -> pick random number from available perms
-            print(len(self.permutations_dct_lst))
-            pdx = random.randint(0, self.number_of_permutations)
+
+            pdx = random.randint(0, self.number_of_permutations - 1)
             # perform actual permutation
-            print(pdx)
+
             # get perm dict
             prmt_dct = self.permutations_dct_lst[pdx]
 
@@ -308,3 +309,17 @@ class Permutation:
 
         # append data to permuted list
         return checkpoint
+
+    def get_all_permutations_for_checkpoint(self, checkpoint):
+        permuted_checkpoints = [checkpoint]
+        for prmt_dct in self.permutations_dct_lst:
+            # apply permutation on input data
+            permuted_checkpoints.append(permute_checkpoint(
+                copy.deepcopy(checkpoint),
+                self.layer_lst,
+                self.layers_to_permute,
+                prmt_dct,
+            ))
+
+        # append data to permuted list
+        return permuted_checkpoints
