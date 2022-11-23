@@ -2,15 +2,15 @@ amp: false
 rng_seed: 0
 num_gpus: 1
 out_dir: results
-exp_name: local_mnist_loss
+exp_name: dgx2_zoo_mnist
 resume_path: null
 test_only: false
 debug_mode: false
 
 dataset:
-  name: mnist_loss
+  name: zoo_mnist
   train_metric: validation_loss
-  path: "../../../../data/tune_zoo_mnist_uniform/"
+  path: "/netscratch2/dtaskiran/zoos/MNIST/tune_zoo_mnist_uniform"
   num_test_runs: 500
   augment: true
   normalizer: openai
@@ -21,7 +21,7 @@ dataset:
 
 vis:
   freq: 20
-  num_nets_per_gpu: 8
+  num_nets_per_gpu: 3
   net_mb_size_per_gpu: 8
   recursive_probe: false
   use_ema: true
@@ -55,13 +55,13 @@ train:
   lr_sch: cos
   base_lr: 4e-4
   wd: 0.1
-  num_ep: 2000
-  mb_size: 1024
+  num_ep: 20
+  mb_size: 512
   checkpoint_freq: 250
 
 test:
   freq: 20
-  mb_size: 1024
+  mb_size: 512
   use_ema: false
 
 wandb:

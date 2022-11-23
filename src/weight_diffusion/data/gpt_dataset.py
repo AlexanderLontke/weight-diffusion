@@ -1,3 +1,4 @@
+import torch
 from pathlib import Path
 from tqdm import tqdm
 from weight_diffusion.data.modelzoo_dataset import ModelZooDataset
@@ -59,12 +60,12 @@ class GptDataset(ModelZooDataset):
         return self.normalizer.unnormalize(normalized_weights)
 
     def get_run_losses(self, i: int):
-        return [
+        return torch.Tensor([
             self.checkpoint_metrics_dict[i][checkpoint_key][
                 self.checkpoint_property_of_interest
             ]
             for checkpoint_key, _ in self.checkpoint_metrics_dict[i].items()
-        ]
+        ])
 
     def get_run_network(self, model_key: int, epoch: int = 0):
         return get_flat_params(self.checkpoints_dict[model_key][epoch])
