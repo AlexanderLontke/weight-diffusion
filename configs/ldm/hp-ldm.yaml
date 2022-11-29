@@ -32,20 +32,21 @@ model:
         image_size: 700 # unused
         in_channels: 1
         out_channels: 1
+        dims: 1
         model_channels: 320
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
-        channel_mult: [ 1, 2, 4, 4 ]
+        channel_mult: [ 1, 2, 4]
         num_heads: 8
-        use_spatial_transformer: True
-        transformer_depth: 1
-        context_dim: 768
+        # use_spatial_transformer: True
+        # transformer_depth: 1
+        # context_dim: 77
         use_checkpoint: False
         legacy: False
-    # TODO implement custom interface which mimics nn.Identity
     first_stage_config:
-      target: torch.nn.Identity
-    # TODO implement custom interface which mimics nn.Identity
+      target: ldm.models.autoencoder.IdentityFirstStage
+      params:
+        vq_interface: False
     cond_stage_config:
       target: torch.nn.Identity
 

@@ -58,14 +58,14 @@ def get_parser(**parser_kwargs):
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=["configs/ldm/hp-ldm.yaml"],
     )
     parser.add_argument(
         "-t",
         "--train",
         type=str2bool,
         const=True,
-        default=False,
+        default=True,
         nargs="?",
         help="train",
     )
@@ -450,7 +450,7 @@ class ImageLogger(Callback):
         return False
 
     def on_train_batch_end(
-        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx,
     ):
         if not self.disabled and (pl_module.global_step > 0 or self.log_first_step):
             self.log_img(pl_module, batch, batch_idx, split="train")
@@ -680,10 +680,10 @@ if __name__ == "__main__":
                     "lightning_config": lightning_config,
                 },
             },
-            "image_logger": {
-                "target": "main.ImageLogger",
-                "params": {"batch_frequency": 750, "max_images": 4, "clamp": True},
-            },
+            #"image_logger": {
+            #    "target": "main.ImageLogger",
+            #    "params": {"batch_frequency": 750, "max_images": 4, "clamp": True},
+            #},
             "learning_rate_logger": {
                 "target": "main.LearningRateMonitor",
                 "params": {
@@ -691,7 +691,7 @@ if __name__ == "__main__":
                     # "log_momentum": True
                 },
             },
-            "cuda_callback": {"target": "main.CUDACallback"},
+            # "cuda_callback": {"target": "main.CUDACallback"},
         }
         if version.parse(pl.__version__) >= version.parse("1.4.0"):
             default_callbacks_cfg.update({"checkpoint_callback": modelckpt_cfg})
