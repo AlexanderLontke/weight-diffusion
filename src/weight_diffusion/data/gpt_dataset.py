@@ -1,6 +1,7 @@
 import os
 
 import torch
+import random
 from pathlib import Path
 from tqdm import tqdm
 from weight_diffusion.data.modelzoo_dataset import ModelZooDataset
@@ -20,8 +21,8 @@ class GptDataset(ModelZooDataset):
         )
 
         # TODO remove these two?
-        # self.parameter_sizes = get_param_sizes(self.data_sample).long().tolist()
-        # self.parameter_names = list(self.data_sample.keys())
+        self.parameter_sizes = get_param_sizes(self.data_sample).long().tolist()
+        self.parameter_names = list(self.data_sample.keys())
 
         # Create dataset index
         self.index_dict = {}  # Dict[index nr.] = (model Nr., (Checkpoint Nr. i, Checkpoint Nr.j), where i < j
@@ -34,31 +35,27 @@ class GptDataset(ModelZooDataset):
             # Index not only for a single checkpoint but all possible
             # combinations of start and end checkpoint pairs
             for checkpoint_i_key in range(n_checkpoints):
-                for permutation_i_key in range(self.number_of_permutations):
-                    for checkpoint_j_key in range(checkpoint_i_key + 1, n_checkpoints):
-                        for permutation_j_key in range(self.number_of_permutations):
-                            self.index_dict[self.count] = (model_key,
-                                                           checkpoint_i_key,
-                                                           permutation_i_key,
-                                                           checkpoint_j_key,
-                                                           permutation_j_key)
-                            self.count += 1
+                for checkpoint_j_key in range(checkpoint_i_key + 1, n_checkpoints):
+                    self.index_dict[self.count] = (model_key,
+                                                    checkpoint_i_key,
+                                                    checkpoint_j_key)
+                    self.count += 1
 
     def __getitem__(self, index):
         # TODO would a list be faster than a dict?
-        model_key, checkpoint_i_key, permutation_i_key, checkpoint_j_key, permutation_j_key = self.index_dict[index]
+        model_key, checkpoint_i_key, checkpoint_j_key = self.index_dict[index]
 
         checkpoint_i_dict = self.checkpoints_dict[model_key][checkpoint_i_key]
-        checkpoint_i = checkpoint_i_dict[0][permutation_i_key]
+        checkpoint_i = random.choice(checkpoint_i_dict[0])
         loss_i = checkpoint_i_dict[1]
 
         checkpoint_j_dict = self.checkpoints_dict[model_key][checkpoint_j_key]
-        checkpoint_j = checkpoint_j_dict[0][permutation_j_key]
+        checkpoint_j = random.choice(checkpoint_j_dict[0])
         loss_j = checkpoint_j_dict[1]
 
         return {
-            "parameters_0": self.normalize(get_flat_params(checkpoint_i)),
-            "parameters_1": self.normalize(get_flat_params(checkpoint_j)),
+            "parameters_0": self.normalize(checkpoint_i),
+            "parameters_1": self.normalize(checkpoint_j),
             f"{self.checkpoint_property_of_interest}_0": loss_i,
             f"{self.checkpoint_property_of_interest}_1": loss_j,
         }
@@ -79,8 +76,9 @@ class GptDataset(ModelZooDataset):
             ]
         )
 
-    def get_run_network(self, model_key: int, epoch: int = 0):
-        return get_flat_params(self.checkpoints_dict[model_key][epoch])
+    def get_run_network(self, model_key: int, epoch: int = 0, permutation: int = 0):
+        a = self.checkpoints_dict[model_key][epoch][0][permutation]
+        return a
 
     def get_range(self, normalize: bool):
         min_val, max_val = self.min_parameter_value, self.max_parameter_value

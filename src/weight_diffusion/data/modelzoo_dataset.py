@@ -19,7 +19,7 @@ def get_all_directories_for_a_path(
         path: Path,
         return_only_directories: bool = True,
         return_no_hidden_directories: bool = True,
-) -> list[str]:
+):
     result = os.listdir(path)
     if return_only_directories:
         result = [
@@ -114,7 +114,7 @@ class ModelZooDataset(Dataset):
         # Get all model directories and perform train_val_test split
         model_directory_paths = perform_train_test_validation_split(
             # TODO Remove [:15]
-            list_to_split=get_all_directories_for_a_path(data_dir)[40:50],
+            list_to_split=get_all_directories_for_a_path(data_dir),
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
         )
@@ -125,15 +125,18 @@ class ModelZooDataset(Dataset):
         self.model_count = 0
         self.first_checkpoint = True
         for model_directory in tqdm(model_directory_paths, desc="Loading Models"):
-            self.checkpoints_dict[self.model_count] = self._parse_model_directory(model_directory)
+            (
+                self.checkpoints_dict[self.model_count],
+                self.checkpoint_metrics_dict[self.model_count],
+            ) = self._parse_model_directory(model_directory)
             self.model_count += 1
 
         # Initialize dataset attributes
         # TODO Do we need?
-        # self.optimal_loss = self._reduce_metrics_data(
-        #     metric=self.checkpoint_property_of_interest,
-        #     aggregation_function=min,
-        # )
+        self.optimal_loss = self._reduce_metrics_data(
+            metric=self.checkpoint_property_of_interest,
+            aggregation_function=min,
+        )
 
         # Define normalizer
         self.normalizer_name = normalizer_name
@@ -187,7 +190,7 @@ class ModelZooDataset(Dataset):
                 model_directory_dict[checkpoint_key] = (permutation_dict, prompt)
             else:
                 continue
-        return model_directory_dict
+        return model_directory_dict, model_progress_dict
 
     def _reduce_metrics_data(self, metric: str, aggregation_function: Callable):
         return aggregation_function(
@@ -218,10 +221,11 @@ class ModelZooDataset(Dataset):
             model_directory, checkpoint_directory, "checkpoints"
         )
         sample_checkpoint = torch.load(checkpoint_path)
+        self.data_sample = sample_checkpoint
         self.permutation = Permutation(
             checkpoint_sample=sample_checkpoint,
             layers_to_permute=self.permute_layers,
             layer_lst=self.layer_list,
-            number_of_permutations=10,
+            number_of_permutations=self.number_of_permutations,
             permutation_mode="random",
         )

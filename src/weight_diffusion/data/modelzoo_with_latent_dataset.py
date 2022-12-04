@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Tuple, List, Dict, Union, Callable
 
 import numpy as np
+import random
 import torch
 from torch import nn
 from torch.utils.data import Dataset
@@ -58,8 +59,10 @@ class ModelZooWithLatentDataset(ModelZooDataset):
 
     def __getitem__(self, index) -> T_co:
         model_key, checkpoint_key = self.index_dict[index]
-        checkpoint_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][0]
-        prompt_latent_rep = self.checkpoints_dict[model_key][checkpoint_key][1]
+
+        checkpoint_dict = self.checkpoints_dict[model_key][checkpoint_key]
+        checkpoint_latent_rep = random.choice(checkpoint_dict[0])
+        prompt_latent_rep = checkpoint_dict[1]
 
         return {
             "checkpoint_latent": checkpoint_latent_rep,
