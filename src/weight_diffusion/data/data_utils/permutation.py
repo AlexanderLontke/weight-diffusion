@@ -4,6 +4,8 @@ import random
 from math import factorial
 from typing import List
 
+from weight_diffusion.data.data_utils.helper import get_flat_params
+
 import torch
 
 
@@ -311,17 +313,19 @@ class Permutation:
         return checkpoint
 
     def get_all_permutations_for_checkpoint(self, checkpoint):
-        permuted_checkpoints = [checkpoint]
+        permuted_checkpoints = [get_flat_params(checkpoint)]
         for prmt_dct in self.permutations_dct_lst:
             # apply permutation on input data
-            permuted_checkpoints.append(
-                permute_checkpoint(
+            a = permute_checkpoint(
                     copy.deepcopy(checkpoint),
                     self.layer_lst,
                     self.layers_to_permute,
                     prmt_dct,
                 )
-            )
+
+            b = get_flat_params(a)
+
+            permuted_checkpoints.append(b)
 
         # append data to permuted list
         return permuted_checkpoints
