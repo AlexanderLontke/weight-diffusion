@@ -604,6 +604,7 @@ if __name__ == "__main__":
             print(f"Running on GPUs {gpuinfo}")
             cpu = False
         trainer_opt = argparse.Namespace(**trainer_config)
+
         lightning_config.trainer = trainer_config
 
         # model
@@ -691,7 +692,7 @@ if __name__ == "__main__":
                     # "log_momentum": True
                 },
             },
-            # "cuda_callback": {"target": "main.CUDACallback"},
+            "cuda_callback": {"target": "main.CUDACallback"},
         }
         if version.parse(pl.__version__) >= version.parse("1.4.0"):
             default_callbacks_cfg.update({"checkpoint_callback": modelckpt_cfg})
@@ -735,6 +736,7 @@ if __name__ == "__main__":
         ]
 
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
+
         trainer.logdir = logdir  ###
 
         # data
@@ -753,7 +755,8 @@ if __name__ == "__main__":
         # configure learning rate
         bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate
         if not cpu:
-            ngpu = len(lightning_config.trainer.gpus.strip(",").split(","))
+            # TODO fix
+            ngpu = 1
         else:
             ngpu = 1
         if "accumulate_grad_batches" in lightning_config.trainer:

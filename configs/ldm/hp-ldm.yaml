@@ -53,14 +53,14 @@ model:
 dataset_split_ratios: &dataset_split_ratios
   - 7
   - 3
-data_dir: &data_dir ../data/tune_zoo_mnist_uniform/
+data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
 openai_coefficient: &openai_coefficient 4.185
 checkpoint_property_of_interest: &checkpoint_property_of_interest validation_loss
 encoder_config: &encoder_config
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
-      device: cpu
+      device: cuda
       model::N_attention_blocks: 2
       model::N_attention_heads: 12
       model::attention_hidden_dim: 1380
@@ -239,7 +239,8 @@ tokenizer_config: &tokenizer_config
   params:
     pretrained_model_name_or_path: tbs17/MathBERT
     output_hidden_states: True
-device: &device cpu
+device: &device cuda
+prompt_embedding_max_length: &prompt_embedding_max_length 77
 
 data:
   target: main.DataModuleFromConfig
@@ -270,6 +271,11 @@ data:
         encoder_config: *encoder_config
         tokenizer_config: *tokenizer_config
         device: *device
-trainer:
-    benchmark: True
-    accumulate_grad_batches: 2
+
+lightning:
+    trainer:
+      benchmark: True
+      accumulate_grad_batches: 2
+      accelerator: gpu
+      gpus: [0]
+      devices: 1
