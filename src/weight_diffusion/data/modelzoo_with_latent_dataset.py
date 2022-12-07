@@ -36,7 +36,14 @@ class ModelZooWithLatentDataset(ModelZooDataset):
         **kwargs
     ):
         self.device = device
+
+
         self.encoder = instantiate_from_config(encoder_config)
+        self.hyper_representations_path = Path(encoder_config['encoder_checkpoint_path'])
+        encoder_checkpoint_path = self.hyper_representations_path.joinpath('checkpoint_ae.pt')
+        encoder_checkpoint = torch.load(encoder_checkpoint_path)
+        self.encoder.model.load_state_dict(encoder_checkpoint)
+        
         self.tokenizer = instantiate_from_config(tokenizer_config)
         self.prompt_embedding_max_length = prompt_embedding_max_length
 
@@ -102,18 +109,13 @@ class ModelZooWithLatentDataset(ModelZooDataset):
         checkpoint = torch.load(checkpoint_path)
         self._update_min_max_param_value(checkpoint)
 
-        permuted_checkpoints = self.permutation.get_all_permutations_for_checkpoint(
-            checkpoint
-        )
         permuted_checkpoints_latent = {}
-        for i in range(len(permuted_checkpoints)):
-            permuted_checkpoint = permuted_checkpoints[i]
-
+        for i in range(-1, self.number_of_permutations):
             checkpoint_latent_rep_path = os.path.join(
                 self.data_dir,
                 model_directory,
                 checkpoint_directory,
-                "checkpoints_latent_rep" + "_p" + str(i),
+                "checkpoints_latent_rep_v2" + "_p" + str(i),
             )
 
             # Fetch latent representation from storage or generate a new one and save it
@@ -121,14 +123,15 @@ class ModelZooWithLatentDataset(ModelZooDataset):
                 checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
             else:
                 # Need to convert from checkpoint to a list of checkpoints
-
+                permuted_checkpoint = self.permutation.permute_checkpoint(checkpoint, i)
+                flattened_permuted_checkpoint = get_flat_params(permuted_checkpoint)
                 with torch.no_grad():
-                    checkpoint_latent_rep, _ = self.encoder.forward(
-                        torch.unsqueeze(permuted_checkpoint, dim=0).to(self.device),
+                    checkpoint_latent_rep = self.encoder.forward_encoder(
+                        torch.unsqueeze(flattened_permuted_checkpoint, dim=0).to(self.device),
                     )
                 checkpoint_latent_rep = checkpoint_latent_rep.to("cpu")
                 torch.save(checkpoint_latent_rep.to("cpu"), checkpoint_latent_rep_path)
 
-            permuted_checkpoints_latent[i] =  checkpoint_latent_rep.to("cpu")
+            permuted_checkpoints_latent[i] =  checkpoint_latent_rep
 
         return permuted_checkpoints_latent

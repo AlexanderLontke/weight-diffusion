@@ -312,6 +312,23 @@ class Permutation:
         # append data to permuted list
         return checkpoint
 
+    def permute_checkpoint(self, checkpoint, pdx):
+        # pdx = -1 returns original checkpoint
+        if self.number_of_permutations > 0 and pdx > -1:
+            # get perm dict
+            prmt_dct = self.permutations_dct_lst[pdx]
+
+            # apply permutation on input data
+            checkpoint = permute_checkpoint(
+                copy.deepcopy(checkpoint),
+                self.layer_lst,
+                self.layers_to_permute,
+                prmt_dct,
+            )
+
+        # append data to permuted list
+        return checkpoint
+
     def get_all_permutations_for_checkpoint(self, checkpoint):
         permuted_checkpoints = [get_flat_params(checkpoint)]
         for prmt_dct in self.permutations_dct_lst:

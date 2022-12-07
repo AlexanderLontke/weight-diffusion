@@ -57,6 +57,7 @@ data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
 openai_coefficient: &openai_coefficient 4.185
 checkpoint_property_of_interest: &checkpoint_property_of_interest validation_loss
 encoder_config: &encoder_config
+  encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
