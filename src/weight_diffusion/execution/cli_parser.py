@@ -87,7 +87,7 @@ def get_parser(**parser_kwargs):
         "-l",
         "--logdir",
         type=str,
-        default="logs",
+        default="./logs",
         help="directory for logging dat shit",
     )
     parser.add_argument(

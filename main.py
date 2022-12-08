@@ -17,11 +17,6 @@ from weight_diffusion.execution.util import (
 if __name__ == "__main__":
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
-    # add cwd for convenience and to make classes in this file available when
-    # running as `python main.py`
-    # (in particular `main.DataModuleFromConfig`)
-    sys.path.append(os.getcwd())
-
     parser = get_parser()
     parser = Trainer.add_argparse_args(parser)
 
