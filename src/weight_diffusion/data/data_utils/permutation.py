@@ -334,11 +334,11 @@ class Permutation:
         for prmt_dct in self.permutations_dct_lst:
             # apply permutation on input data
             a = permute_checkpoint(
-                    copy.deepcopy(checkpoint),
-                    self.layer_lst,
-                    self.layers_to_permute,
-                    prmt_dct,
-                )
+                copy.deepcopy(checkpoint),
+                self.layer_lst,
+                self.layers_to_permute,
+                prmt_dct,
+            )
 
             b = get_flat_params(a)
 

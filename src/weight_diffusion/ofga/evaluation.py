@@ -10,6 +10,8 @@ import ghrp.sampling_auxiliaries.sample_finetune_auxiliaries
 from ldm.util import instantiate_from_config
 import wandb
 
+def evaluate_prompt_alignment():
+
 
 def evaluate_generated_models(epochs: int, prompt: str, models: mnist_task.CNN, input, target):
     k = len(models)

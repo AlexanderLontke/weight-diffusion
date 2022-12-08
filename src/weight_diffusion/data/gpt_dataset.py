@@ -11,7 +11,7 @@ from weight_diffusion.data.data_utils.permutation import Permutation
 
 class GptDataset(ModelZooDataset):
     def __init__(
-            self, data_dir: Path, checkpoint_property_of_interest: str, split: str, **kwargs
+        self, data_dir: Path, checkpoint_property_of_interest: str, split: str, **kwargs
     ):
         super().__init__(
             data_dir=data_dir,
@@ -25,10 +25,12 @@ class GptDataset(ModelZooDataset):
         self.parameter_names = list(self.data_sample.keys())
 
         # Create dataset index
-        self.index_dict = {}  # Dict[index nr.] = (model Nr., (Checkpoint Nr. i, Checkpoint Nr.j), where i < j
+        self.index_dict = (
+            {}
+        )  # Dict[index nr.] = (model Nr., (Checkpoint Nr. i, Checkpoint Nr.j), where i < j
         self.count = 0
         for model_key, checkpoints_dict in tqdm(
-                self.checkpoints_dict.items(), desc="Indexing G.pt dataset"
+            self.checkpoints_dict.items(), desc="Indexing G.pt dataset"
         ):
             n_checkpoints = len(checkpoints_dict.keys())
 
@@ -36,9 +38,11 @@ class GptDataset(ModelZooDataset):
             # combinations of start and end checkpoint pairs
             for checkpoint_i_key in range(n_checkpoints):
                 for checkpoint_j_key in range(checkpoint_i_key + 1, n_checkpoints):
-                    self.index_dict[self.count] = (model_key,
-                                                    checkpoint_i_key,
-                                                    checkpoint_j_key)
+                    self.index_dict[self.count] = (
+                        model_key,
+                        checkpoint_i_key,
+                        checkpoint_j_key,
+                    )
                     self.count += 1
 
     def __getitem__(self, index):

@@ -16,9 +16,9 @@ from weight_diffusion.data.data_utils.helper import perform_train_test_validatio
 
 
 def get_all_directories_for_a_path(
-        path: Path,
-        return_only_directories: bool = True,
-        return_no_hidden_directories: bool = True,
+    path: Path,
+    return_only_directories: bool = True,
+    return_no_hidden_directories: bool = True,
 ):
     result = os.listdir(path)
     if return_only_directories:
@@ -45,7 +45,7 @@ def _guess_dtype(x):
 
 
 def parse_progress_csv(
-        path_to_progress_csv: Path,
+    path_to_progress_csv: Path,
 ) -> Dict[int, Dict[str, Union[str, bool, float]]]:
     """
     To know what the training/test loss/other metrics looked like at each checkpoint
@@ -65,17 +65,17 @@ def parse_progress_csv(
 
 class ModelZooDataset(Dataset):
     def __init__(
-            self,
-            data_dir: Path,
-            checkpoint_property_of_interest: str,
-            split: str,
-            dataset_split_ratios: List[float] = None,
-            openai_coefficient: float = 4.185,
-            normalizer_name="openai",
-            use_permutation: bool = True,
-            permute_layers: Union[List[int], str] = "all",
-            number_of_permutations: int = 10,
-            permutation_mode="random",
+        self,
+        data_dir: Path,
+        checkpoint_property_of_interest: str,
+        split: str,
+        dataset_split_ratios: List[float] = None,
+        openai_coefficient: float = 4.185,
+        normalizer_name="openai",
+        use_permutation: bool = True,
+        permute_layers: Union[List[int], str] = "all",
+        number_of_permutations: int = 10,
+        permutation_mode="random",
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -103,8 +103,8 @@ class ModelZooDataset(Dataset):
             permute_layers = [
                 layer_id
                 for layer_id, layer_type in self.layer_list[
-                                            :-1
-                                            ]  # Can't permute last layer
+                    :-1
+                ]  # Can't permute last layer
             ]
         self.permute_layers = permute_layers
 
@@ -156,11 +156,13 @@ class ModelZooDataset(Dataset):
 
     # parsing methods
     def _parse_checkpoint_directory(
-            self, checkpoint_directory, model_directory
+        self, checkpoint_directory, model_directory
     ) -> torch.Tensor:
         raise NotImplementedError
 
-    def _parse_model_directory(self, model_directory) -> Dict[int, Tuple[torch.Tensor, any]]:
+    def _parse_model_directory(
+        self, model_directory
+    ) -> Dict[int, Tuple[torch.Tensor, any]]:
         model_directory_dict = {}
         model_progress_dict = parse_progress_csv(
             path_to_progress_csv=self.data_dir.joinpath(model_directory).joinpath(
@@ -168,7 +170,9 @@ class ModelZooDataset(Dataset):
             )
         )
 
-        for checkpoint_directory in get_all_directories_for_a_path(self.data_dir.joinpath(model_directory)):
+        for checkpoint_directory in get_all_directories_for_a_path(
+            self.data_dir.joinpath(model_directory)
+        ):
             if self.first_checkpoint:
                 self._initialise_permutations(model_directory, checkpoint_directory)
                 self.first_checkpoint = False
@@ -178,8 +182,7 @@ class ModelZooDataset(Dataset):
                 checkpoint_progress = model_progress_dict[checkpoint_key]
 
                 permutation_dict = self._parse_checkpoint_directory(
-                    checkpoint_directory,
-                    model_directory
+                    checkpoint_directory, model_directory
                 )
 
                 prompt_path = os.path.join(
