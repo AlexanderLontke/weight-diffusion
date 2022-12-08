@@ -145,33 +145,33 @@ def get_model_trainer_and_data_from_config(
     # lightning still takes care of proper multiprocessing though
     # data.prepare_data()
     # data.setup()
-    print("#### Data #####")
-    for k in data.datasets:
-        print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
+    # print("#### Data #####")
+    # for k in data.datasets:
+    #    print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
 
-        # configure learning rate
-        bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate
-        if not cpu:
-            # TODO fix
-            ngpu = 1
-        else:
-            ngpu = 1
-        if "accumulate_grad_batches" in lightning_config.trainer:
-            accumulate_grad_batches = lightning_config.trainer.accumulate_grad_batches
-        else:
-            accumulate_grad_batches = 1
-        print(f"accumulate_grad_batches = {accumulate_grad_batches}")
-        lightning_config.trainer.accumulate_grad_batches = accumulate_grad_batches
-        if opt.scale_lr:
-            model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
-            print(
-                "Setting learning rate to {:.2e} = {} (accumulate_grad_batches) * {} (num_gpus) * {} (batchsize) * {:.2e} (base_lr)".format(
-                    model.learning_rate, accumulate_grad_batches, ngpu, bs, base_lr
-                )
+    # configure learning rate
+    bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate
+    if not cpu:
+        # TODO fix
+        ngpu = 1
+    else:
+        ngpu = 1
+    if "accumulate_grad_batches" in lightning_config.trainer:
+        accumulate_grad_batches = lightning_config.trainer.accumulate_grad_batches
+    else:
+        accumulate_grad_batches = 1
+    print(f"accumulate_grad_batches = {accumulate_grad_batches}")
+    lightning_config.trainer.accumulate_grad_batches = accumulate_grad_batches
+    if opt.scale_lr:
+        model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
+        print(
+            "Setting learning rate to {:.2e} = {} (accumulate_grad_batches) * {} (num_gpus) * {} (batchsize) * {:.2e} (base_lr)".format(
+                model.learning_rate, accumulate_grad_batches, ngpu, bs, base_lr
             )
-        else:
-            model.learning_rate = base_lr
-            print("++++ NOT USING LR SCALING ++++")
-            print(f"Setting learning rate to {model.learning_rate:.2e}")
+        )
+    else:
+        model.learning_rate = base_lr
+        print("++++ NOT USING LR SCALING ++++")
+        print(f"Setting learning rate to {model.learning_rate:.2e}")
 
     return data, model, trainer
