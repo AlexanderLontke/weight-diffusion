@@ -244,7 +244,7 @@ device: &device cuda
 prompt_embedding_max_length: &prompt_embedding_max_length 77
 
 data:
-  target: main.DataModuleFromConfig
+  target: weight_diffusion.execution.config_data_module.DataModuleFromConfig
   params:
     batch_size: 96
     num_workers: 4
