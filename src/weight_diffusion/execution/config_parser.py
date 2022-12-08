@@ -61,6 +61,7 @@ def get_model_trainer_and_data_from_config(
             "filename": "{epoch:06}",
             "verbose": True,
             "save_last": True,
+            "every_n_epochs": 1,
         },
     }
     if hasattr(model, "monitor"):
