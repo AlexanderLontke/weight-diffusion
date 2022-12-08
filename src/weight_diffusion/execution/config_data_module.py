@@ -77,9 +77,9 @@ class DataModuleFromConfig(pl.LightningDataModule):
             self.predict_dataloader = self._predict_dataloader
         self.wrap = wrap
 
-    def prepare_data(self):
-        for data_cfg in self.dataset_configs.values():
-            instantiate_from_config(data_cfg)
+    # def prepare_data(self):
+    #     for data_cfg in self.dataset_configs.values():
+    #         instantiate_from_config(data_cfg)
 
     def setup(self, stage=None):
         self.datasets = dict(

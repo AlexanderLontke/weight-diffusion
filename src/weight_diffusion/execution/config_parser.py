@@ -143,8 +143,8 @@ def get_model_trainer_and_data_from_config(
     # NOTE according to https://pytorch-lightning.readthedocs.io/en/latest/datamodules.html
     # calling these ourselves should not be necessary but it is.
     # lightning still takes care of proper multiprocessing though
-    data.prepare_data()
-    data.setup()
+    # data.prepare_data()
+    # data.setup()
     print("#### Data #####")
     for k in data.datasets:
         print(f"{k}, {data.datasets[k].__class__.__name__}, {len(data.datasets[k])}")
