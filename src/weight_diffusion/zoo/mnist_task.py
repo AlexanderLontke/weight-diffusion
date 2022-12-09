@@ -102,13 +102,13 @@ class CNN(nn.Module):
 
 
 # test batch
-def test_step(input, target, model: nn.Module):
+def test_step(input, target, model: nn.Module, loss_function=nn.CrossEntropyLoss()):
     with torch.no_grad():
         # forward pass: prediction
         output = model.forward(input)
 
         # compute loss
-        criterion = nn.CrossEntropyLoss()
+        criterion = loss_function
         loss = criterion(output, target)
         correct = 0
         # compute correct
