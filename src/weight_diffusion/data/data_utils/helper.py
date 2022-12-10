@@ -1,9 +1,10 @@
 import torch
 from typing import List, Any, Collection
-from ghrp.sampling_auxiliaries.sample_finetune_auxiliaries import vector_to_checkpoint
 import json
 from pathlib import Path
 from ghrp.model_definitions.def_net import NNmodule
+import copy
+
 
 def get_flat_params(state_dict):
     parameters = []
@@ -31,6 +32,83 @@ def generate_checkpoints_from_weights(
         )
 
         return chkpt
+
+
+def vector_to_checkpoint(
+        checkpoint, vector, layer_lst, use_bias=False
+):
+    # assert checkpoints and vector size match
+    checkpoint = copy.deepcopy(checkpoint)
+    testvector = vectorize_checkpoint(checkpoint, layer_lst, use_bias=use_bias)
+    assert len(testvector) == len(
+        vector
+    ), f"checkpoint and test vector lengths dont match - {len(testvector)} vs {len(vector)} "
+
+    # transformation
+    idx_start = 0
+    for layer, _ in layer_lst:
+        # weights
+        # load old/sample weights
+        weight = checkpoint.get(f"module_list.{layer}.weight", torch.empty(0))
+        # flatten sample weights to get dimension
+        tmp = weight.flatten()
+        # get end index
+        idx_end = idx_start + tmp.shape[0]
+        #         print(f"idx_start = {idx_start} - {idx_end}")
+        #         print("old weight")
+        #         print(weight)
+        # slice incoming vector and press it in corresponding shape
+        weight_new = vector[idx_start:idx_end].view(weight.shape)
+        #         print("new weight")
+        #         print(weight_new)
+        # update dictionary
+        checkpoint[f"module_list.{layer}.weight"] = weight_new.clone()
+        # update index
+        idx_start = idx_end
+
+        # bias
+
+        if use_bias:
+            # bias
+            # load old/sample bias
+            bias = checkpoint.get(f"module_list.{layer}.bias", torch.empty(0))
+            # flatten sample bias to get dimension
+            tmp = bias.flatten()
+            # get end index
+            idx_end = idx_start + tmp.shape[0]
+            #             print(f"idx_start = {idx_start} - {idx_end}")
+            #             print(bias)
+            # slice incoming vector and press it in corresponding shape
+            bias_new = vector[idx_start:idx_end].view(bias.shape)
+            #             print(bias_new)
+            # update dictionary
+            checkpoint[f"module_list.{layer}.bias"] = bias_new.clone()
+            # update index
+            idx_start = idx_end
+
+    return checkpoint
+
+
+def vectorize_checkpoint(checkpoint, layer_lst, use_bias=False):
+    # initialize data list
+    ddx = []
+    # loop over all layers in layer_lst
+    for _, (layer, _) in enumerate(layer_lst):
+        # load input data and label from data
+        weight = checkpoint.get(f"module_list.{layer}.weight", torch.empty(0))
+        bias = checkpoint.get(f"module_list.{layer}.bias", torch.empty(0))
+
+        # put weights to be considered in a list for post-processing
+        ddx.append(weight)
+        if use_bias:
+            ddx.append(bias)
+
+    vec = torch.Tensor()
+    for idx in ddx:
+        vec = torch.cat((vec, idx.view(-1)))
+    ddx = vec
+
+    return ddx
 
 
 def get_param_sizes(state_dict):

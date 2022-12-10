@@ -2,7 +2,7 @@ exp_name: model_evaluation
 seed: 1337
 device: &device cuda
 sampling_method: ldm #Gpt
-data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
+data_dir: &data_dir /Users/kristofer/GitHub/weight-diffusion/src/weight_diffusion/data/tune_zoo_mnist_uniform
 finetune_epochs: [0, 1, 5, 25]
 
 wandb_config:
@@ -13,106 +13,147 @@ wandb_config:
   mode: online
 
 ldm_config:
-  base_learning_rate: 1.0e-04
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
-  params:
-    linear_start: 0.00085
-    linear_end: 0.0120
-    num_timesteps_cond: 1
-    log_every_t: 200
-    timesteps: 1000
-    first_stage_key: checkpoint_latent
-    cond_stage_key: prompt_latent
-    image_size: 700 # TODO check if correct
-    channels: 1
-    cond_stage_trainable: false
-    conditioning_key: crossattn
-    monitor: val/loss_simple_ema
-    scale_factor: 0.18215
-    use_ema: False
+  ldm_checkpoint_path: /Users/kristofer/GitHub/weight-diffusion/last.ckpt
+  model:
+    base_learning_rate: 1.0e-04
+    target: ldm.models.diffusion.ddpm.LatentDiffusion
+    params:
+      linear_start: 0.00085
+      linear_end: 0.0120
+      num_timesteps_cond: 1
+      log_every_t: 200
+      timesteps: 1000
+      first_stage_key: checkpoint_latent
+      cond_stage_key: prompt_latent
+      image_size: 700 # TODO check if correct
+      channels: 1
+      cond_stage_trainable: false
+      conditioning_key: crossattn
+      monitor: val/loss_simple_ema
+      scale_factor: 0.18215
+      use_ema: False
 
-    scheduler_config: # 10000 warmup steps
-      target: ldm.lr_scheduler.LambdaLinearScheduler
-      params:
-        warm_up_steps: [ 10000 ]
-        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
-        f_start: [ 1.e-6 ]
-        f_max: [ 1. ]
-        f_min: [ 1. ]
+      scheduler_config: # 10000 warmup steps
+        target: ldm.lr_scheduler.LambdaLinearScheduler
+        params:
+          warm_up_steps: [ 10000 ]
+          cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
+          f_start: [ 1.e-6 ]
+          f_max: [ 1. ]
+          f_min: [ 1. ]
 
-    unet_config:
-      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
-      params:
-        image_size: 700 # unused
-        in_channels: 1
-        out_channels: 1
-        dims: 1
-        model_channels: 320
-        attention_resolutions: [ 4, 2, 1 ]
-        num_res_blocks: 2
-        channel_mult: [ 1, 2, 4]
-        num_heads: 8
-        # use_spatial_transformer: True
-        # transformer_depth: 1
-        # context_dim: 77
-        use_checkpoint: False
-        legacy: False
-    first_stage_config:
-      target: ldm.models.autoencoder.IdentityFirstStage
-      params:
-        vq_interface: False
-    cond_stage_config:
-      target: torch.nn.Identity
+      unet_config:
+        target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+        params:
+          image_size: 700 # unused
+          in_channels: 1
+          out_channels: 1
+          dims: 1
+          model_channels: 320
+          attention_resolutions: [ 4, 2, 1 ]
+          num_res_blocks: 2
+          channel_mult: [ 1, 2, 4]
+          num_heads: 8
+          # use_spatial_transformer: True
+          # transformer_depth: 1
+          # context_dim: 77
+          use_checkpoint: False
+          legacy: False
+      first_stage_config:
+        target: ldm.models.autoencoder.IdentityFirstStage
+        params:
+          vq_interface: False
+      cond_stage_config:
+        target: torch.nn.Identity
 
-encoder_config: &encoder_config
-  encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
-  target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
-  params:
-    config:
-      device: cuda
-      model::N_attention_blocks: 2
-      model::N_attention_heads: 12
-      model::attention_hidden_dim: 1380
-      model::bottleneck: linear_bounded
-      model::compression: token
-      model::decompression: linear
-      model::decoder_bias: false
-      model::dim_attention_embedding: 1428
-      model::dropout: 0.1
-      model::encoding: neuron
-      model::i_dim: 2464
-      model::index_dict:
-        channels_in:
-          - 1
-          - 8
-          - 6
-          - 4
-          - 20
-        idx_length:
-          - 208
-          - 1206
-          - 100
-          - 740
-          - 210
-        idx_start:
-          - 0
-          - 208
-          - 1414
-          - 1514
-          - 2254
-        kernel_no:
-          - 8
-          - 6
-          - 4
-          - 20
-          - 10
-        kernel_size:
+  encoder_config: &encoder_config
+    encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
+    target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
+    params:
+      config:
+        device: cuda
+        model::N_attention_blocks: 2
+        model::N_attention_heads: 12
+        model::attention_hidden_dim: 1380
+        model::bottleneck: linear_bounded
+        model::compression: token
+        model::decompression: linear
+        model::decoder_bias: false
+        model::dim_attention_embedding: 1428
+        model::dropout: 0.1
+        model::encoding: neuron
+        model::i_dim: 2464
+        model::index_dict:
+          channels_in:
+            - 1
+            - 8
+            - 6
+            - 4
+            - 20
+          idx_length:
+            - 208
+            - 1206
+            - 100
+            - 740
+            - 210
+          idx_start:
+            - 0
+            - 208
+            - 1414
+            - 1514
+            - 2254
+          kernel_no:
+            - 8
+            - 6
+            - 4
+            - 20
+            - 10
+          kernel_size:
+            - 25
+            - 25
+            - 4
+            - 9
+            - 1
+          layer:
+            - - 0
+              - conv2d
+            - - 3
+              - conv2d
+            - - 6
+              - conv2d
+            - - 9
+              - fc
+            - - 11
+              - fc
+        model::latent_dim: 700
+        model::normalize: true
+        model::projection_head_batchnorm: false
+        model::projection_head_hdim: 400
+        model::projection_head_layers: 4
+        model::projection_head_odim: 50
+        model::type: transformer
+        optim::lr: 0.0001
+        optim::optimizer: adam
+        optim::scheduler: ReduceLROnPlateau
+        optim::scheduler_factor: 0.3
+        optim::scheduler_mode: min
+        optim::wd: 1.0e-09
+        seed: 42
+        testloader::workers: 4
+        testset::add_noise_input: false
+        testset::add_noise_output: false
+        testset::ds_split:
+          - 0.7
+          - 0.15
+          - 0.15
+        testset::epoch_lst:
+          - 21
+          - 22
+          - 23
+          - 24
           - 25
-          - 25
-          - 4
-          - 9
-          - 1
-        layer:
+        testset::filter_function:
+        testset::layer_lst:
           - - 0
             - conv2d
           - - 3
@@ -123,126 +164,87 @@ encoder_config: &encoder_config
             - fc
           - - 11
             - fc
-      model::latent_dim: 700
-      model::normalize: true
-      model::projection_head_batchnorm: false
-      model::projection_head_hdim: 400
-      model::projection_head_layers: 4
-      model::projection_head_odim: 50
-      model::type: transformer
-      optim::lr: 0.0001
-      optim::optimizer: adam
-      optim::scheduler: ReduceLROnPlateau
-      optim::scheduler_factor: 0.3
-      optim::scheduler_mode: min
-      optim::wd: 1.0e-09
-      seed: 42
-      testloader::workers: 4
-      testset::add_noise_input: false
-      testset::add_noise_output: false
-      testset::ds_split:
-        - 0.7
-        - 0.15
-        - 0.15
-      testset::epoch_lst:
-        - 21
-        - 22
-        - 23
-        - 24
-        - 25
-      testset::filter_function:
-      testset::layer_lst:
-        - - 0
-          - conv2d
-        - - 3
-          - conv2d
-        - - 6
-          - conv2d
-        - - 9
-          - fc
-        - - 11
-          - fc
-      testset::mode: vector
-      testset::permutation_mode: random
-      testset::permutations_number: 100
-      testset::permute_layers:
-        - 0
-        - 3
-        - 6
-        - 9
-      testset::permute_type: pair
-      testset::property_keys:
-        config_keys: [ ]
-        result_keys:
-          - test_acc
-          - training_iteration
-          - ggap
-      testset::task: reconstruction
-      testset::use_bias: true
-      testset::weight_threshold: 5
-      training::checkpoint_dir:
-      training::contrast: positive
-      training::epochs_train: 350
-      training::normalize_loss: true
-      training::gamma: 0.099602290720457
-      training::output_epoch: 50
-      training::start_epoch: 1
-      training::temperature: 0.1
-      training::tensorboard_dir:
-      training::test_epochs: 5
-      training::tf_out: 500
-      trainloader::workers: 4
-      trainset::add_noise_input: false
-      trainset::add_noise_output: false
-      trainset::batchsize: 500
-      trainset::ds_split:
-        - 0.7
-        - 0.15
-        - 0.15
-      trainset::epoch_lst:
-        - 21
-        - 22
-        - 23
-        - 24
-        - 25
-      trainset::erase_augment:
-        mode: block
-        p: 0.5
-        scale:
-          - 0.02
-          - 0.33
-        value: 0
-      trainset::filter_function:
-      trainset::layer_lst:
-        - - 0
-          - conv2d
-        - - 3
-          - conv2d
-        - - 6
-          - conv2d
-        - - 9
-          - fc
-        - - 11
-          - fc
-      trainset::mode: vector
-      trainset::permutation_mode: random
-      trainset::permutations_number: 25000
-      trainset::permute_layers:
-        - 0
-        - 3
-        - 6
-        - 9
-      trainset::permute_type: pair
-      trainset::property_keys:
-        config_keys: [ ]
-        result_keys:
-          - test_acc
-          - training_iteration
-          - ggap
-      trainset::task: reconstruction
-      trainset::use_bias: true
-      trainset::weight_threshold: 5
-      verbosity: 0
+        testset::mode: vector
+        testset::permutation_mode: random
+        testset::permutations_number: 100
+        testset::permute_layers:
+          - 0
+          - 3
+          - 6
+          - 9
+        testset::permute_type: pair
+        testset::property_keys:
+          config_keys: [ ]
+          result_keys:
+            - test_acc
+            - training_iteration
+            - ggap
+        testset::task: reconstruction
+        testset::use_bias: true
+        testset::weight_threshold: 5
+        training::checkpoint_dir:
+        training::contrast: positive
+        training::epochs_train: 350
+        training::normalize_loss: true
+        training::gamma: 0.099602290720457
+        training::output_epoch: 50
+        training::start_epoch: 1
+        training::temperature: 0.1
+        training::tensorboard_dir:
+        training::test_epochs: 5
+        training::tf_out: 500
+        trainloader::workers: 4
+        trainset::add_noise_input: false
+        trainset::add_noise_output: false
+        trainset::batchsize: 500
+        trainset::ds_split:
+          - 0.7
+          - 0.15
+          - 0.15
+        trainset::epoch_lst:
+          - 21
+          - 22
+          - 23
+          - 24
+          - 25
+        trainset::erase_augment:
+          mode: block
+          p: 0.5
+          scale:
+            - 0.02
+            - 0.33
+          value: 0
+        trainset::filter_function:
+        trainset::layer_lst:
+          - - 0
+            - conv2d
+          - - 3
+            - conv2d
+          - - 6
+            - conv2d
+          - - 9
+            - fc
+          - - 11
+            - fc
+        trainset::mode: vector
+        trainset::permutation_mode: random
+        trainset::permutations_number: 25000
+        trainset::permute_layers:
+          - 0
+          - 3
+          - 6
+          - 9
+        trainset::permute_type: pair
+        trainset::property_keys:
+          config_keys: [ ]
+          result_keys:
+            - test_acc
+            - training_iteration
+            - ggap
+        trainset::task: reconstruction
+        trainset::use_bias: true
+        trainset::weight_threshold: 5
+        verbosity: 0
 
 tokenizer_config: &tokenizer_config
   target: weight_diffusion.ofga.encoders.get_pretrained_bert_tokenizer
@@ -252,7 +254,7 @@ tokenizer_config: &tokenizer_config
 
 sampling_config:
   shape: 700
-  data_dir: &data_dir
+  data_dir: *data_dir
   prompt_embedding_max_length: 77
   evaluation_prompt_statistics:
     prompt_1:
@@ -272,8 +274,10 @@ sampling_config:
 
 finetune_config:
   finetune_epochs: [0, 1, 5, 25]
-  device: &device
-  optimiser: adam
+
+evaluation_dataset_config:
+  data_dir: *data_dir
+
 
 
 
