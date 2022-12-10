@@ -8,6 +8,7 @@ import hydra
 import omegaconf
 import torchvision
 import torchvision.transforms as transforms
+import numpy as np
 import wandb
 from ghrp.model_definitions.def_net import NNmodule
 from pytorch_lightning import seed_everything
@@ -120,25 +121,36 @@ def _finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader):
     return model
 
 
-def _evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets, prompt=None):
+def _evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets, targets, prompt=None):
     evaluation_dict = {}
 
     for key, dataloader in evaluation_datasets:
         overall_loss, overall_accuracy = model.test_epoch(dataloader, epoch=-1)
-        evaluation_dict[key] = {"loss": overall_loss, "accuracy": overall_accuracy}
+        evaluation_dict[f"{key}_loss"] = overall_loss
+        evaluation_dict[f"{key}_acc"] = overall_accuracy
 
     if prompt is not None:
         evaluation_dict["prompt_alignment"] = _calculate_ldm_prompt_alignment(
-            prompt, evaluation_dict
+            evaluation_dict=evaluation_dict,
+            targets=targets
         )
 
     return evaluation_dict
 
 
-def _calculate_ldm_prompt_alignment(prompt, evaluation_dict):
-    prompted_statistics = re.findall(r"[-+]?(?:\d*\.*\d+)", prompt)
-    diff = ...  # TODO what formula?
-    return diff
+def _calculate_ldm_prompt_alignment(evaluation_dict, targets):
+    """
+    Calculate the prompt alignment based on the root mean squared errors of metrics
+    :param evaluation_dict: dictionary containing actual statistics achieved by a sampled checkpoint
+    :param targets: dictionary containing actual statistics in prompt
+    :return:
+    Root mean squared error of metrics' differences
+    """
+    squared_errors = []
+    for k in evaluation_dict.keys():
+        squared_errors += (evaluation_dict[k] - targets[k]) ** 2
+    mse = np.mean(squared_errors)
+    return np.sqrt(mse)
 
 
 def _prompt_from_results_dict(results_dict):
@@ -154,14 +166,14 @@ def _prompt_from_results_dict(results_dict):
     return prompt
 
 
-def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, NNmodule]):
+def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, Tuple[NNmodule, Dict[str, float]]]):
     evaluation_datasets = _get_evaluation_datasets(config.evaluation_dataset_config)
 
     current_epoch = 0
     for finetune_epoch in config.finetune_config.finetune_epochs:
         epochs_to_train = finetune_epoch - current_epoch
         current_epoch = finetune_epoch
-        for prompt, model in models_to_evaluate:
+        for prompt, (model, targets) in models_to_evaluate:
             if epochs_to_train > 0:
                 _finetune_MNIST_CNN(
                     model, epochs_to_train, evaluation_datasets["train"]
@@ -170,10 +182,12 @@ def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, NNmodul
             # if first epoch then calculate prompt alignment
             if finetune_epoch == 0:
                 evaluation_dict = _evaluate_MNIST_CNN(
-                    model, evaluation_datasets, prompt
+                    model, evaluation_datasets, prompt, targets
                 )
             else:
-                evaluation_dict = _evaluate_MNIST_CNN(model, evaluation_datasets)
+                evaluation_dict = _evaluate_MNIST_CNN(
+                    model, evaluation_datasets, targets
+                )
 
             log_dict = {
                 "model_prompt": prompt,
@@ -226,7 +240,7 @@ def main(config: omegaconf.DictConfig):
     models_to_evaluate = {}
     for prompt, sampled_checkpoint in sampled_mnist_model_checkpoints_dict:
         model = _instantiate_MNIST_CNN(model_config, sampled_checkpoint)
-        models_to_evaluate[prompt] = model
+        models_to_evaluate[prompt] = model, targets_dict[prompt]
 
     evaluate(config, models_to_evaluate)
 
