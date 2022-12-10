@@ -253,7 +253,11 @@ tokenizer_config: &tokenizer_config
     output_hidden_states: True
 
 sampling_config:
-  shape: 700
+  shape:
+    - 1
+    - 700
+    - 1
+  sampling_steps: 50
   data_dir: *data_dir
   prompt_embedding_max_length: 77
   evaluation_prompt_statistics:

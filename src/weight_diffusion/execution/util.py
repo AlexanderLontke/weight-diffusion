@@ -3,6 +3,7 @@ import torch
 
 from ldm.util import instantiate_from_config
 
+
 def get_resume_checkpoint_path(opt):
     if not os.path.exists(opt.resume):
         raise ValueError("Cannot find {}".format(opt.resume))

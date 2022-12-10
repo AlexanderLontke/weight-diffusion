@@ -92,7 +92,9 @@ def get_model_trainer_and_data_from_config(
                 "lightning_config": lightning_config,
             },
         },
-        "cuda_callback": {"target": "weight_diffusion.execution.cuda_callback.CUDACallback"},
+        "cuda_callback": {
+            "target": "weight_diffusion.execution.cuda_callback.CUDACallback"
+        },
     }
     if version.parse(pl.__version__) >= version.parse("1.4.0"):
         default_callbacks_cfg.update({"checkpoint_callback": modelckpt_cfg})
