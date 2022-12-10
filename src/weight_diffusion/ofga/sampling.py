@@ -17,8 +17,7 @@ from weight_diffusion.execution.util import load_model_from_config
 
 def sample_from_prompt(
         prompt: str,
-        config: OmegaConf,
-        checkpoint_file_path: str,
+        model,
         sampling_steps: int,
         shape: Tuple,
         sampler_type: str = "DDIM",
@@ -26,9 +25,6 @@ def sample_from_prompt(
         use_autocast_precision: bool = True,
         ddim_eta: float = 0.0,  # DDIM ETA 0.0 corresponds to deterministic sampling
 ):
-    # Instantiate model
-    model = load_model_from_config(config, checkpoint_file_path)
-
     # Instantiate Sampler
     if sampler_type == "DPM":
         sampler = DPMSolverSampler(model)

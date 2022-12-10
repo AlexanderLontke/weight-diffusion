@@ -12,13 +12,16 @@ import wandb
 from ghrp.model_definitions.def_net import NNmodule
 from pytorch_lightning import seed_everything
 from ldm.util import instantiate_from_config
+from  weight_diffusion.execution.util import load_model_from_config
+from weight_diffusion.ofga.sampling import sample_from_prompt
+
 from weight_diffusion.data.data_utils.helper import generate_checkpoints_from_weights
 
 def _sample_checkpoints_from_ldm(sampling_config, model_config, layer_list, ldm, encoder, tokenizer, device):
     noise = torch.randn(sampling_config.shape, device=device)
 
     sampled_mnist_model_checkpoints_dict = {}
-    for prompt_statistics in sampling_config.evaluation_prompt_statistics:
+    for prompt_statistics in [sampling_config.evaluation_prompt_statistics.prompt_1, sampling_config.evaluation_prompt_statistics.prompt_2]:
         prompt = _prompt_from_results_dict(prompt_statistics)
         prompt_latent_rep = tokenizer(
             prompt,
@@ -26,7 +29,7 @@ def _sample_checkpoints_from_ldm(sampling_config, model_config, layer_list, ldm,
             return_tensors="pt",
             padding="max_length",
         )["input_ids"]
-        sampled_weights_latent = ldm(noise, prompt_latent_rep)
+        sampled_weights_latent = sample_from_prompt(prompt_latent_rep, ldm, 1, (700,1))
         sampled_weights = encoder.forward_decoder(sampled_weights_latent)
         sampled_checkpoint = generate_checkpoints_from_weights(sampled_weights,
                                                                model_config,
@@ -51,11 +54,11 @@ def _initiate_tokenizer(tokenizer_config):
 
 
 def _instantiate_ldm(ldm_config):
-    ldm = instantiate_from_config(ldm_config.model)
     ldm_checkpoint_path = Path(ldm_config.ldm_checkpoint_path)
-    ldm.load_from_checkpoint(ldm_checkpoint_path)
-    #ldm_checkpoint = torch.load(ldm_checkpoint_path)
-    ldm.model.load_state_dict(ldm_checkpoint)
+    ldm = load_model_from_config(ldm_config, ldm_checkpoint_path)
+    # ldm.load_from_checkpoint(ldm_checkpoint_path)
+    # ldm_checkpoint = torch.load(ldm_checkpoint_path)
+    # ldm.model.load_state_dict(ldm_checkpoint)
     return ldm
 
 
@@ -123,6 +126,7 @@ def _calculate_ldm_prompt_alignment(prompt, evaluation_dict):
 
 
 def _prompt_from_results_dict(results_dict):
+    print(results_dict)
     prompt = (
         f"The training loss is {results_dict['train_loss']:.4g}. "
         f"The training accuracy is {results_dict['train_acc']:.4g}. "
