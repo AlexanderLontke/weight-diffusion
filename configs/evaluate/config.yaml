@@ -3,13 +3,12 @@ seed: 1337
 device: &device cuda
 sampling_method: ldm #Gpt
 data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
-finetune_epochs: [0, 1, 5, 25]
 
 wandb_config:
   name: ${exp_name}
   group: default
   project: WeightDiffusion
-  entity: reynisson
+  entity: alontke
   mode: online
 
 ldm_config:

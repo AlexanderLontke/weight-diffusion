@@ -8,8 +8,10 @@ import hydra
 import omegaconf
 import torchvision
 import torchvision.transforms as transforms
+from torchvision import datasets
 import numpy as np
 import wandb
+from tqdm import tqdm
 from ghrp.model_definitions.def_net import NNmodule
 from pytorch_lightning import seed_everything
 from torch.utils.data import random_split, DataLoader
@@ -73,68 +75,62 @@ def _instantiate_ldm(ldm_config):
     return ldm
 
 
-def _instantiate_MNIST_CNN(mnist_cnn_config, checkpoint):
-    mnist_cnn = NNmodule(mnist_cnn_config, verbosity=0)
+def _instantiate_MNIST_CNN(mnist_cnn_config, checkpoint, device):
+    mnist_cnn = NNmodule(mnist_cnn_config,cuda=(device == "cuda"), verbosity=0)
     mnist_cnn.model.load_state_dict(checkpoint)
+    mnist_cnn = mnist_cnn.to(torch.device(device))
     return mnist_cnn
 
 
 def _get_evaluation_datasets(evaluation_dataset_config):
-    transform = transforms.Compose([transforms.ToTensor()])
+    # Same seed as in
+    # https://github.com/ModelZoos/ModelZooDataset/blob/main/code/zoo_generators/train_zoo_mnist_uniform.py
+    dataset_seed = 42
+    evaluation_datasets = {}
+    # load raw dataset
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
-    evaluation_datasets = {
-        "test": torch.utils.data.DataLoader(
-            torchvision.datasets.MNIST(
-                root=evaluation_dataset_config.data_dir,
-                train=False,
-                download=True,
-                transform=transform,
-            ),
-            batch_size=10000,
-            shuffle=False,
-        )
-    }
+    val_and_trainset_raw = datasets.MNIST(
+        evaluation_dataset_config.data_dir, train=True, download=True, transform=transform)
+    testset_raw = datasets.MNIST(
+        evaluation_dataset_config.data_dir, train=False, download=True, transform=transform)
+    trainset_raw, valset_raw = torch.utils.data.random_split(
+        val_and_trainset_raw, [50000, 10000], generator=torch.Generator().manual_seed(dataset_seed))
 
-    training_data = torchvision.datasets.MNIST(
-        root=evaluation_dataset_config.data_dir,
-        train=True,
-        download=True,
-        transform=transform,
+    # temp dataloaders
+    evaluation_datasets["train"] = torch.utils.data.DataLoader(
+        dataset=trainset_raw, batch_size=len(trainset_raw), shuffle=True
     )
-
-    training_data = random_split(
-        training_data, evaluation_dataset_config.split
+    evaluation_datasets["validation"] = torch.utils.data.DataLoader(
+        dataset=valset_raw, batch_size=len(valset_raw), shuffle=True
     )
-
-    evaluation_datasets["train"] = DataLoader(
-        training_data[0], batch_size=10000, shuffle=False
-    )
-    evaluation_datasets["validation"] = DataLoader(
-        training_data[1], batch_size=10000, shuffle=False
+    evaluation_datasets["test"] = torch.utils.data.DataLoader(
+        dataset=testset_raw, batch_size=len(testset_raw), shuffle=True
     )
 
     return evaluation_datasets
 
 
-def _finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader):
+def _finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader, prompt):
     for epoch in range(epochs):
-        model.train_epoch(train_dataloader, epoch)
+        loss_runing, accuracy = model.train_epoch(train_dataloader, epoch)
+        wandb.log(
+            {
+                f"{prompt}/train_loss_running": loss_runing,
+                f"{prompt}/train_accuracy": accuracy
+            }
+        )
     return model
 
 
-def _evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets, targets, prompt=None):
+def _evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets):
     evaluation_dict = {}
 
-    for key, dataloader in evaluation_datasets:
+    for key, dataloader in evaluation_datasets.items():
         overall_loss, overall_accuracy = model.test_epoch(dataloader, epoch=-1)
         evaluation_dict[f"{key}_loss"] = overall_loss
         evaluation_dict[f"{key}_acc"] = overall_accuracy
-
-    if prompt is not None:
-        evaluation_dict["prompt_alignment"] = _calculate_ldm_prompt_alignment(
-            evaluation_dict=evaluation_dict,
-            targets=targets
-        )
 
     return evaluation_dict
 
@@ -149,7 +145,7 @@ def _calculate_ldm_prompt_alignment(evaluation_dict, targets):
     """
     squared_errors = []
     for k in evaluation_dict.keys():
-        squared_errors += (evaluation_dict[k] - targets[k]) ** 2
+        squared_errors += [(evaluation_dict[k] - targets[k]) ** 2]
     mse = np.mean(squared_errors)
     return np.sqrt(mse)
 
@@ -171,31 +167,28 @@ def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, Tuple[N
     evaluation_datasets = _get_evaluation_datasets(config.evaluation_dataset_config)
 
     current_epoch = 0
-    for finetune_epoch in config.finetune_config.finetune_epochs:
+    for finetune_epoch in tqdm(config.finetune_config.finetune_epochs, desc="Evaluating sampled weights"):
         epochs_to_train = finetune_epoch - current_epoch
         current_epoch = finetune_epoch
-        for prompt, (model, targets) in models_to_evaluate:
+        for prompt, (model, targets) in models_to_evaluate.items():
             if epochs_to_train > 0:
                 _finetune_MNIST_CNN(
-                    model, epochs_to_train, evaluation_datasets["train"]
+                    model, epochs_to_train, evaluation_datasets["train"], prompt
                 )
 
+            evaluation_dict = _evaluate_MNIST_CNN(
+                model, evaluation_datasets,
+            )
+            log_dict = {
+                f"{prompt}/epoch_{current_epoch}_{k}": v
+                for k, v in evaluation_dict.items()
+            }
             # if first epoch then calculate prompt alignment
             if finetune_epoch == 0:
-                evaluation_dict = _evaluate_MNIST_CNN(
-                    model, evaluation_datasets, prompt, targets
+                log_dict[f"{prompt}/prompt_alignment"] = _calculate_ldm_prompt_alignment(
+                    evaluation_dict=evaluation_dict,
+                    targets=targets
                 )
-            else:
-                evaluation_dict = _evaluate_MNIST_CNN(
-                    model, evaluation_datasets, targets
-                )
-
-            log_dict = {
-                "model_prompt": prompt,
-                "finetune_epoch": finetune_epoch,
-                "evaluation": evaluation_dict,
-            }
-
             wandb.log(log_dict)
 
         # TODO put model into test mode?
@@ -208,8 +201,6 @@ def main(config: omegaconf.DictConfig):
 
     # Set global seed
     seed_everything(config.seed)
-
-    device = config.device
 
     # Load model architecture
     with open(Path(config.data_dir).joinpath("config.json")) as model_json:
@@ -239,9 +230,9 @@ def main(config: omegaconf.DictConfig):
         raise NotImplementedError
 
     models_to_evaluate = {}
-    for prompt, sampled_checkpoint in sampled_mnist_model_checkpoints_dict:
-        model = _instantiate_MNIST_CNN(model_config, sampled_checkpoint)
-        models_to_evaluate[prompt] = model, targets_dict[prompt]
+    for prompt, sampled_checkpoint in sampled_mnist_model_checkpoints_dict.items():
+        model = _instantiate_MNIST_CNN(model_config, sampled_checkpoint, config.device)
+        models_to_evaluate[prompt] = (model, targets_dict[prompt])
 
     evaluate(config, models_to_evaluate)
 
