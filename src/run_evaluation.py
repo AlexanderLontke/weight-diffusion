@@ -26,7 +26,7 @@ def _sample_checkpoints_from_ldm(
     sampled_mnist_model_checkpoints_dict = {}
     targets_dict = {}
     for prompt_statistics in [
-        v for _, v in sampling_config.evaluation_promt_statistics.items()
+        v for _, v in sampling_config.evaluation_prompt_statistics.items()
     ]:
         prompt = _prompt_from_results_dict(prompt_statistics)
         prompt_latent_rep = tokenizer(
@@ -39,7 +39,8 @@ def _sample_checkpoints_from_ldm(
             prompt=prompt_latent_rep,
             model=ldm,
             sampling_steps=sampling_config.sampling_steps,
-            shape=sampling_config.shape,
+            shape=tuple(sampling_config.shape),
+            guidance_scale=1.0,
         )
         sampled_weights = encoder.forward_decoder(sampled_weights_latent)
         sampled_checkpoint = generate_checkpoints_from_weights(
@@ -203,7 +204,7 @@ def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, Tuple[N
 @hydra.main(config_path="../configs/evaluate", config_name="config.yaml")
 def main(config: omegaconf.DictConfig):
     # initiate wandb logging of evaluation
-    wandb.init(config=config.wandb_config)
+    wandb.init(**config.wandb_config)
 
     # Set global seed
     seed_everything(config.seed)

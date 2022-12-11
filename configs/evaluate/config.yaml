@@ -71,7 +71,7 @@ encoder_config: &encoder_config
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
-      device: cuda
+      device: *device
       model::N_attention_blocks: 2
       model::N_attention_heads: 12
       model::attention_hidden_dim: 1380
@@ -256,7 +256,6 @@ sampling_config:
   shape:
     - 1
     - 700
-    - 1
   sampling_steps: 50
   data_dir: *data_dir
   prompt_embedding_max_length: 77

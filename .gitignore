@@ -51,3 +51,8 @@ MANIFEST
 # Per-project virtualenvs
 .venv*/
 .conda*/
+
+wandb/*
+vision_datasets/*
+results/*
+src/outputs/*
