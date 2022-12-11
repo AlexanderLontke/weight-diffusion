@@ -1,28 +1,15 @@
-import csv
-import json
 import os
 from pathlib import Path
-from typing import Tuple, List, Dict, Union, Callable
+from typing import Dict
 
-import numpy as np
-import random
 import torch
-from torch import nn
-from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 from tqdm import tqdm
 
 from weight_diffusion.data.data_utils.helper import get_flat_params
-from weight_diffusion.data.data_utils.helper import perform_train_test_validation_split
-from weight_diffusion.data.data_utils.normalization import get_normalizer
-from weight_diffusion.data.data_utils.permutation import Permutation
 from weight_diffusion.data.modelzoo_dataset import ModelZooDataset
 
 from ldm.util import instantiate_from_config
-
-# TODO make the this and gpt dataset equally implement the checkpoint loading,
-# this will also include loading the prompt - need to change how this is accessed
-# for the get item at least for gpt
 
 
 class ModelZooWithLatentDataset(ModelZooDataset):
