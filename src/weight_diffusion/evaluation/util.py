@@ -41,12 +41,19 @@ def sample_checkpoints_from_ldm(
             return_tensors="pt",
             padding="max_length",
         )["input_ids"]
+        uc = tokenizer(
+            "",
+            max_length=sampling_config.prompt_embedding_max_length,
+            return_tensors="pt",
+            padding="max_length",
+        )["input_ids"]
         sampled_weights_latent = sample_from_prompt(
             prompt=prompt_latent_rep,
             model=ldm,
             sampling_steps=sampling_config.sampling_steps,
             shape=tuple(sampling_config.shape),
-            guidance_scale=1.0,
+            guidance_scale=7.5,
+            uc=uc,
         )
         sampled_weights = encoder.forward_decoder(sampled_weights_latent)
         sampled_checkpoint = generate_checkpoints_from_weights(
