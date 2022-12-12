@@ -3,6 +3,7 @@ from ghrp.model_definitions.def_net import NNmodule
 from torchvision import transforms
 from torchvision import datasets
 
+
 def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint, device):
     mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=0)
     mnist_cnn.model.load_state_dict(checkpoint)

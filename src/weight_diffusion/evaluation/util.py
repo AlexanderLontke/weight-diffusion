@@ -89,11 +89,12 @@ def instantiate_ldm(ldm_config):
 def log_dictionary_locally(logging_dict: Dict, logging_path: str):
     logging_path: Path = Path(logging_path)
     logging_path.parent.mkdir(parents=True, exist_ok=True)
-    with logging_path.open('w') as convert_file:
+    with logging_path.open("w") as convert_file:
         convert_file.write(json.dumps(logging_dict))
+
 
 def load_logging_dict(logging_path: str):
     logging_path: Path = Path(logging_path)
-    with logging_path.open('r') as convert_file:
+    with logging_path.open("r") as convert_file:
         logging_dict = convert_file.read()
     return json.loads(logging_dict)
