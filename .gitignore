@@ -56,3 +56,4 @@ wandb/*
 vision_datasets/*
 results/*
 src/outputs/*
+outputs/*

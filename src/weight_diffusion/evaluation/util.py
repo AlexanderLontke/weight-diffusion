@@ -1,6 +1,7 @@
 from typing import Dict, Tuple
 from pathlib import Path
 import torch
+import json
 
 from ldm.util import instantiate_from_config
 from weight_diffusion.execution.util import load_model_from_config
@@ -76,3 +77,16 @@ def instantiate_ldm(ldm_config):
     ldm_checkpoint_path = Path(ldm_config.ldm_checkpoint_path)
     ldm = load_model_from_config(ldm_config, ldm_checkpoint_path)
     return ldm
+
+
+def log_dictionary_locally(logging_dict: Dict, logging_path: str):
+    logging_path: Path = Path(logging_path)
+    logging_path.parent.mkdir(parents=True, exist_ok=True)
+    with logging_path.open('w') as convert_file:
+        convert_file.write(json.dumps(logging_dict))
+
+def load_logging_dict(logging_path: str):
+    logging_path: Path = Path(logging_path)
+    with logging_path.open('r') as convert_file:
+        logging_dict = convert_file.read()
+    return json.loads(logging_dict)

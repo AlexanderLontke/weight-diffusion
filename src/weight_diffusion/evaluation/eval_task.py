@@ -53,15 +53,16 @@ def get_evaluation_datasets(evaluation_dataset_config):
 
 
 def finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader, prompt):
+    training_losses = []
+    training_accuracy = []
     for epoch in range(epochs):
         loss_runing, accuracy = model.train_epoch(train_dataloader, epoch)
-        wandb.log(
-            {
-                f"{prompt}/train_loss_running": loss_runing,
-                f"{prompt}/train_accuracy": accuracy,
-            }
-        )
-    return model
+        training_losses += [loss_runing]
+        training_accuracy += [accuracy]
+    return model, {
+        "train_running_loss": training_losses,
+        "train_running_accuracy": training_accuracy,
+    }
 
 
 def evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets):

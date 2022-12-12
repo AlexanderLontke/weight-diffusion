@@ -23,6 +23,7 @@ from weight_diffusion.evaluation.util import (
     instantiate_ldm,
     instantiate_encoder,
     initiate_tokenizer,
+    log_dictionary_locally
 )
 
 
@@ -40,26 +41,40 @@ def evaluate(
         epochs_to_train = finetune_epoch - current_epoch
         current_epoch = finetune_epoch
         for prompt, (model, targets) in models_to_evaluate.items():
-            if epochs_to_train > 0:
-                finetune_MNIST_CNN(
+            if finetune_epoch == 0:
+                # Instantiate logging dict
+                log_dict[prompt] = {}
+                # Instantiate tracking of training
+                log_dict[prompt]["train_running_loss"] = []
+                log_dict[prompt]["train_running_accuracy"] = []
+                log_dict[prompt]["targets"] = dict(targets)
+            else:
+                _, progress_dict = finetune_MNIST_CNN(
                     model, epochs_to_train, evaluation_datasets["train"], prompt
                 )
+                for k in ["train_running_loss", "train_running_accuracy"]:
+                    log_dict[prompt][k] += progress_dict[k]
 
             evaluation_dict = evaluate_MNIST_CNN(model, evaluation_datasets)
+            log_dict[prompt][f"epoch_{finetune_epoch}"] = evaluation_dict
 
-            log_dict[prompt][finetune_epoch] = evaluation_dict
             # if first epoch then calculate prompt alignment
             if finetune_epoch == 0:
                 prompt_alignment = calculate_ldm_prompt_alignment(
                     evaluation_dict=evaluation_dict, targets=targets
                 )
                 log_dict[prompt]["prompt_alignment"] = prompt_alignment
+                
+    log_dictionary_locally(
+        logging_dict=log_dict,
+        logging_path="./logs.json"
+    )
     wandb.log(
         log_dict,
     )
 
 
-@hydra.main(config_path="../configs/evaluate", config_name="config.yaml")
+@hydra.main(config_path="./configs/evaluate", config_name="config.yaml")
 def main(config: omegaconf.DictConfig):
     # initiate wandb logging of evaluation
     wandb.init(**config.wandb_config)
