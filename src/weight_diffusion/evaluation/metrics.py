@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def calculate_ldm_prompt_alignment(evaluation_dict, targets):
     """
     Calculate the prompt alignment based on the root mean squared errors of metrics
