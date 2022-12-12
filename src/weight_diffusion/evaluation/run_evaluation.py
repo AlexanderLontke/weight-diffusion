@@ -165,7 +165,8 @@ def _prompt_from_results_dict(results_dict):
 
 def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, Tuple[NNmodule, Dict[str, float]]]):
     evaluation_datasets = _get_evaluation_datasets(config.evaluation_dataset_config)
-
+    
+    log_dict = {}
     current_epoch = 0
     for finetune_epoch in tqdm(config.finetune_config.finetune_epochs, desc="Evaluating sampled weights"):
         epochs_to_train = finetune_epoch - current_epoch
@@ -179,20 +180,18 @@ def evaluate(config: omegaconf.DictConfig, models_to_evaluate: Dict[str, Tuple[N
             evaluation_dict = _evaluate_MNIST_CNN(
                 model, evaluation_datasets,
             )
-            log_dict = {
-                f"{prompt}/epoch_{current_epoch}_{k}": v
-                for k, v in evaluation_dict.items()
-            }
+            
+            log_dict[prompt][finetune_epoch] = evaluation_dict
             # if first epoch then calculate prompt alignment
             if finetune_epoch == 0:
-                log_dict[f"{prompt}/prompt_alignment"] = _calculate_ldm_prompt_alignment(
+                prompt_alignment = _calculate_ldm_prompt_alignment(
                     evaluation_dict=evaluation_dict,
                     targets=targets
                 )
-            wandb.log(log_dict)
-
-        # TODO put model into test mode?
-
+                log_dict[prompt]["prompt_alignment"] = prompt_alignment
+    wandb.log(
+        log_dict,
+    )
 
 @hydra.main(config_path="../configs/evaluate", config_name="config.yaml")
 def main(config: omegaconf.DictConfig):
