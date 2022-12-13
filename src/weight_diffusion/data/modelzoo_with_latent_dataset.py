@@ -73,6 +73,14 @@ class ModelZooWithLatentDataset(ModelZooDataset):
 
     def _get_prompt(self, checkpoint_progress, prompt_path):
         # Fetch latent representation from storage or generate a new one and save it
+        prompt = torch.Tensor([checkpoint_progress['train_acc'], 
+                  checkpoint_progress['validation_acc'], 
+                  checkpoint_progress['test_acc']])
+
+        return prompt
+
+    def _get_prompt_old(self, checkpoint_progress, prompt_path):
+        # Fetch latent representation from storage or generate a new one and save it
         if os.path.isfile(prompt_path):
             prompt_latent_rep = torch.load(prompt_path)
         else:

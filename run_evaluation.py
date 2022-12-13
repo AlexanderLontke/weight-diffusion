@@ -20,6 +20,7 @@ from weight_diffusion.evaluation.eval_task import (
 from weight_diffusion.evaluation.metrics import calculate_ldm_prompt_alignment
 from weight_diffusion.evaluation.util import (
     sample_checkpoints_from_ldm,
+    instantiate_gpt,
     instantiate_ldm,
     instantiate_encoder,
     initiate_tokenizer,
@@ -92,8 +93,9 @@ def main(config: omegaconf.DictConfig):
 
     # Sampling checkpoints based on method under evaluation
     if config.sampling_method == "Gpt":
-        # TODO sample from Gpt
-        raise NotImplementedError
+        diffusion, gpt_model, train_dataset = instantiate_gpt(config.gpt_config)
+        # TODO Test both togehther? 
+
     elif config.sampling_method == "ldm":
         ldm = instantiate_ldm(config.ldm_config)
         encoder = instantiate_encoder(config.encoder_config)
