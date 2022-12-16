@@ -20,6 +20,7 @@ def sample_from_prompt(
     model,
     sampling_steps: int,
     shape: Tuple,
+    uc,
     sampler_type: str = "DDIM",
     guidance_scale: float = 7.5,
     use_autocast_precision: bool = True,
@@ -37,12 +38,9 @@ def sample_from_prompt(
     with torch.no_grad():
         with precision_scope("cuda"):
             with model.ema_scope():
-                tic = time.time()
-                all_samples = list()
-                uc = None
-                if guidance_scale != 1.0:
-                    uc = model.get_learned_conditioning(sampling_steps * [""])
-                c = model.get_learned_conditioning([prompt])
+                if guidance_scale == 1.0:
+                    uc = None
+                c = model.get_learned_conditioning(prompt)
                 samples_ddim, _ = sampler.sample(
                     S=sampling_steps,
                     conditioning=c,

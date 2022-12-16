@@ -3,14 +3,40 @@ seed: 1337
 device: &device cuda
 sampling_method: ldm #Gpt
 data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
-finetune_epochs: [0, 1, 5, 25]
 
 wandb_config:
   name: ${exp_name}
   group: default
   project: WeightDiffusion
-  entity: reynisson
+  entity: alontke
   mode: online
+
+gpt_config:
+  transformer:
+    ema: true
+    absolute_loss_conditioning: true
+    predict_xstart: true
+    chunk_size: 1000
+    split_policy: "chunk_within_layer"
+    max_freq_log2: 14
+    num_frequencies: 128
+    n_embd: 1536
+    encoder_depth: 1
+    decoder_depth: 1
+    n_layer: 12
+    n_head: 16
+    dropout_prob: 0.0
+  dataset:
+    name: zoo_mnist
+    train_metric: validation_loss
+    path: "/netscratch2/kreynisson/data/tune_zoo_mnist_uniform"
+    num_test_runs: 500
+    augment: true
+    normalizer: openai
+    openai_coefficient: 4.185
+    target_epoch_size: 100800
+    max_train_runs: 1000000
+    num_workers: 1
 
 ldm_config:
   ldm_checkpoint_path: /netscratch2/kreynisson/weight-diffusion/logs/2022-12-09T15-56-04_hp-ldm/checkpoints/last.ckpt
@@ -71,7 +97,7 @@ encoder_config: &encoder_config
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
-      device: cuda
+      device: *device
       model::N_attention_blocks: 2
       model::N_attention_heads: 12
       model::attention_hidden_dim: 1380
@@ -256,25 +282,73 @@ sampling_config:
   shape:
     - 1
     - 700
-    - 1
   sampling_steps: 50
   data_dir: *data_dir
   prompt_embedding_max_length: 77
   evaluation_prompt_statistics:
     prompt_1:
-      train_loss: 0.23547177693415433
-      train_acc: 0.9293
-      validation_loss: 0.26414182782173157
-      validation_acc: 0.9205
-      test_loss: 0.24097087979316711
-      test_acc: 0.9301
-    prompt_2:
-      train_loss: 0.23547177693415433
-      train_acc: 0.9293
-      validation_loss: 0.26414182782173157
-      validation_acc: 0.9205
-      test_loss: 0.24097087979316711
-      test_acc: 0.9301
+      train_loss: 2.2193379314899446
+      train_acc: 0.16126
+      validation_loss: 2.076323986053467
+      validation_acc: 0.1999
+      test_loss: 2.072357416152954
+      test_acc: 0.1995
+    promtp_2:
+      train_loss: 1.8915899208545686
+      train_acc: 0.26984
+      validation_loss: 1.877575159072876
+      validation_acc: 0.2812
+      test_loss: 1.8670214414596558
+      test_acc: 0.2777
+    prompt_3:
+      train_loss: 1.7501586325645446
+      train_acc: 0.33576
+      validation_loss: 1.7005707025527954
+      validation_acc: 0.362
+      test_loss: 1.6803345680236816
+      test_acc: 0.3606
+    promtp_4:
+      train_loss: 1.5255577799201012
+      train_acc: 0.4363
+      validation_loss: 1.4922499656677246
+      validation_acc: 0.4555
+      test_loss: 1.4733335971832275
+      test_acc: 0.4653
+    prompt_5:
+      train_loss: 1.1893459279954433
+      train_acc: 0.5671
+      validation_loss: 1.1699752807617188
+      validation_acc: 0.5832
+      test_loss: 1.1508769989013672
+      test_acc: 0.583
+    prompt_6:
+      train_loss: 0.9511789116233588
+      train_acc: 0.65918
+      validation_loss: 0.9407992362976074
+      validation_acc: 0.6659
+      test_loss: 0.9020390510559082
+      test_acc: 0.6737
+    prompt_7:
+      train_loss: 0.6917352895915508
+      train_acc: 0.75768
+      validation_loss: 0.6968080997467041
+      validation_acc: 0.7626
+      test_loss: 0.6469360589981079
+      test_acc: 0.7737
+    prompt_8: 
+      train_loss: 0.4302793982863426
+      train_acc: 0.86308
+      validation_loss: 0.46385976672172546
+      validation_acc: 0.8505
+      test_loss: 0.41706815361976624
+      test_acc: 0.8669
+    prompt_9:
+      train_loss: 0.3219652168320492
+      train_acc: 0.89962
+      validation_loss: 0.3643215000629425
+      validation_acc: 0.8857
+      test_loss: 0.3315613865852356
+      test_acc: 0.901
 
 finetune_config:
   finetune_epochs: [0, 1, 5, 25]

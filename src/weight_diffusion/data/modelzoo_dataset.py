@@ -74,7 +74,7 @@ class ModelZooDataset(Dataset):
         normalizer_name="openai",
         use_permutation: bool = True,
         permute_layers: Union[List[int], str] = "all",
-        number_of_permutations: int = 10,
+        number_of_permutations: int = 100,
         permutation_mode="random",
     ):
         super().__init__()
@@ -113,7 +113,6 @@ class ModelZooDataset(Dataset):
 
         # Get all model directories and perform train_val_test split
         model_directory_paths = perform_train_test_validation_split(
-            # TODO Remove [:100]
             list_to_split=get_all_directories_for_a_path(data_dir),
             dataset_split_ratios=self.dataset_split_ratios,
             split=self.split,
@@ -125,6 +124,9 @@ class ModelZooDataset(Dataset):
         self.model_count = 0
         self.first_checkpoint = True
         for model_directory in tqdm(model_directory_paths, desc="Loading Models"):
+            # TODO Fix
+            if model_directory == 'MNIST':
+                    continue
             (
                 self.checkpoints_dict[self.model_count],
                 self.checkpoint_metrics_dict[self.model_count],
