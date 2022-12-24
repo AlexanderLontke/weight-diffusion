@@ -31,7 +31,7 @@ class ModelZooWithLatentDataset(ModelZooDataset):
         encoder_checkpoint_path = self.hyper_representations_path.joinpath(
             "checkpoint_ae.pt"
         )
-        encoder_checkpoint = torch.load(encoder_checkpoint_path)
+        encoder_checkpoint = torch.load(encoder_checkpoint_path, map_location=torch.device(self.device))
         self.encoder.model.load_state_dict(encoder_checkpoint)
 
         self.tokenizer = instantiate_from_config(tokenizer_config)
