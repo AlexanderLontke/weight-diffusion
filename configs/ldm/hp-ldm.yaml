@@ -9,7 +9,7 @@ model:
     timesteps: 1000
     first_stage_key: checkpoint_latent
     cond_stage_key: prompt_latent
-    image_size: 700 # TODO check if correct
+    image_size: 700
     channels: 1
     cond_stage_trainable: false
     conditioning_key: crossattn
@@ -38,9 +38,9 @@ model:
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4]
         num_heads: 8
-        # use_spatial_transformer: True
-        # transformer_depth: 1
-        # context_dim: 77
+        use_prompt_transformer: True
+        transformer_depth: 1
+        context_dim: 77
         use_checkpoint: False
         legacy: False
     first_stage_config:
