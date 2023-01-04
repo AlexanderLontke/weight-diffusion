@@ -1,67 +1,18 @@
-model:
-  base_learning_rate: 1.0e-06
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
-  params:
-    linear_start: 0.00085
-    linear_end: 0.0120
-    num_timesteps_cond: 1
-    log_every_t: 200
-    timesteps: 1000
-    first_stage_key: checkpoint_latent
-    cond_stage_key: prompt_latent
-    image_size: 700
-    channels: 1
-    cond_stage_trainable: false
-    conditioning_key: crossattn
-    monitor: val/loss_simple_ema
-    scale_factor: 0.18215
-    use_ema: False
-
-#    scheduler_config: # 10000 warmup steps
-#      target: ldm.lr_scheduler.LambdaLinearScheduler
-#      params:
-#        warm_up_steps: [ 10000 ]
-#        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
-#        f_start: [ 1.e-6 ]
-#        f_max: [ 1. ]
-#        f_min: [ 1. ]
-
-    unet_config:
-      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
-      params:
-        image_size: 700 # unused
-        in_channels: 1
-        out_channels: 1
-        dims: 1
-        model_channels: 320
-        attention_resolutions: [ 4, 2, 1 ]
-        num_res_blocks: 2
-        channel_mult: [ 1, 2, 4]
-        num_heads: 8
-        use_prompt_transformer: True
-        transformer_depth: 1
-        context_dim: 77
-        use_checkpoint: False
-        legacy: False
-    first_stage_config:
-      target: ldm.models.autoencoder.IdentityFirstStage
-      params:
-        vq_interface: False
-    cond_stage_config:
-      target: torch.nn.Identity
-
+device: &device cpu
+prompt_embedding_max_length: &prompt_embedding_max_length 3
 dataset_split_ratios: &dataset_split_ratios
   - 7
   - 3
-data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
+number_of_permutations: &number_of_permutations 10
+data_dir: &data_dir /Users/alexanderlontke/Documents/Uni/St. Gallen/HS_22_23/integrative_master_project/data/tune_zoo_mnist_uniform_subset # /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
 openai_coefficient: &openai_coefficient 4.185
 checkpoint_property_of_interest: &checkpoint_property_of_interest validation_loss
 encoder_config: &encoder_config
-  encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
+  encoder_checkpoint_path: /Users/alexanderlontke/Documents/Uni/St. Gallen/HS_22_23/integrative_master_project/data_hr/hyper_representations/mnist # /netscratch2/kreynisson/data/hyper_representations/mnist
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
-      device: cuda
+      device: *device
       model::N_attention_blocks: 2
       model::N_attention_heads: 12
       model::attention_hidden_dim: 1380
@@ -240,8 +191,59 @@ tokenizer_config: &tokenizer_config
   params:
     pretrained_model_name_or_path: tbs17/MathBERT
     output_hidden_states: True
-device: &device cuda
-prompt_embedding_max_length: &prompt_embedding_max_length 77
+    prompt_embedding_max_length: *prompt_embedding_max_length
+
+model:
+  base_learning_rate: 1.0e-06
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    linear_start: 0.00085
+    linear_end: 0.0120
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: checkpoint_latent
+    cond_stage_key: prompt_latent
+    image_size: 700
+    channels: 1
+    cond_stage_trainable: false
+    conditioning_key: crossattn
+    monitor: val/loss_simple_ema
+    scale_factor: 0.18215
+    use_ema: False
+
+#    scheduler_config: # 10000 warmup steps
+#      target: ldm.lr_scheduler.LambdaLinearScheduler
+#      params:
+#        warm_up_steps: [ 10000 ]
+#        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
+#        f_start: [ 1.e-6 ]
+#        f_max: [ 1. ]
+#        f_min: [ 1. ]
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 700 # unused
+        in_channels: 1
+        out_channels: 1
+        dims: 1
+        model_channels: 320
+        attention_resolutions: [ 4, 2, 1 ]
+        num_res_blocks: 2
+        channel_mult: [ 1, 2, 4]
+        num_heads: 8
+        use_spatial_transformer: True
+        transformer_depth: 1
+        context_dim: *prompt_embedding_max_length
+        use_checkpoint: False
+        legacy: False
+    first_stage_config:
+      target: ldm.models.autoencoder.IdentityFirstStage
+      params:
+        vq_interface: False
+    cond_stage_config:
+      target: torch.nn.Identity
 
 data:
   target: weight_diffusion.execution.config_data_module.DataModuleFromConfig
@@ -260,6 +262,7 @@ data:
         encoder_config: *encoder_config
         tokenizer_config: *tokenizer_config
         device: *device
+        number_of_permutations: *number_of_permutations
 
     validation:
       target: weight_diffusion.data.modelzoo_with_latent_dataset.ModelZooWithLatentDataset
@@ -272,6 +275,7 @@ data:
         encoder_config: *encoder_config
         tokenizer_config: *tokenizer_config
         device: *device
+        number_of_permutations: *number_of_permutations
 
 lightning:
     trainer:
