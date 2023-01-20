@@ -110,6 +110,7 @@ def main(config: omegaconf.DictConfig):
             ldm=ldm,
             encoder=encoder,
             tokenizer=tokenizer,
+            device=config.device
         )
     else:
         raise NotImplementedError
