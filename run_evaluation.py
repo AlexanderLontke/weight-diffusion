@@ -54,15 +54,15 @@ def evaluate(
         log_dict[prompt][f"epoch_{current_epoch}"] = evaluation_dict
 
         for k in targets.keys():
-            if k == "baseline":
-                pass
+            if prompt == "baseline":
+                continue
             if k not in prompt_targets.keys():
                 prompt_targets[k] = []
                 prompt_actual[k] = []
             prompt_targets[k].append(targets[k]) 
             prompt_actual[k].append(evaluation_dict[k]) 
 
-        if prompt in config.finetune_config.prompts_to_finetune:
+        if prompt in list(config.finetune_config.prompts_to_finetune) or prompt == "baseline":
             for finetune_epoch in tqdm(
                 config.finetune_config.finetune_epochs, desc="Fine-tuning sampled weights"
             ):
