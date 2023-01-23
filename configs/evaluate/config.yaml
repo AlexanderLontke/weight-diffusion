@@ -295,7 +295,7 @@ sampling_config:
       validation_acc: 0.1999
       test_loss: 2.072357416152954
       test_acc: 0.1995
-    promtp_2:
+    prompt_2:
       train_loss: 1.8915899208545686
       train_acc: 0.26984
       validation_loss: 1.877575159072876
@@ -309,7 +309,7 @@ sampling_config:
       validation_acc: 0.362
       test_loss: 1.6803345680236816
       test_acc: 0.3606
-    promtp_4:
+    prompt_4:
       train_loss: 1.5255577799201012
       train_acc: 0.4363
       validation_loss: 1.4922499656677246
@@ -337,7 +337,7 @@ sampling_config:
       validation_acc: 0.7626
       test_loss: 0.6469360589981079
       test_acc: 0.7737
-    prompt_8: 
+    prompt_8:
       train_loss: 0.4302793982863426
       train_acc: 0.86308
       validation_loss: 0.46385976672172546
