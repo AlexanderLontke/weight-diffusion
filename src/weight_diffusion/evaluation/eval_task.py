@@ -4,12 +4,12 @@ from torchvision import transforms
 from torchvision import datasets
 
 
-def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint, device):
-    mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=0)
-    mnist_cnn.model.load_state_dict(checkpoint)
+def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint = None, device = None):
+    mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=2)
+    if checkpoint is not None:
+        mnist_cnn.model.load_state_dict(checkpoint)
     mnist_cnn = mnist_cnn.to(torch.device(device))
     return mnist_cnn
-
 
 def get_evaluation_datasets(evaluation_dataset_config):
     # Same seed as in
@@ -66,12 +66,11 @@ def finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader, prompt):
     }
 
 
-def evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets):
+def evaluate_MNIST_CNN(model: NNmodule, evaluation_datasets, epoch=-1):
     evaluation_dict = {}
 
     for key, dataloader in evaluation_datasets.items():
-        overall_loss, overall_accuracy = model.test_epoch(dataloader, epoch=-1)
+        overall_loss, overall_accuracy = model.test_epoch(dataloader, epoch=epoch)
         evaluation_dict[f"{key}_loss"] = overall_loss
         evaluation_dict[f"{key}_acc"] = overall_accuracy
-
     return evaluation_dict

@@ -62,12 +62,14 @@ def get_model_trainer_and_data_from_config(
             "verbose": True,
             "save_last": True,
             "every_n_epochs": 1,
+            "save_top_k": -1,
+            "monitor": "val/loss_simple_ema"
         },
     }
     if hasattr(model, "monitor"):
         print(f"Monitoring {model.monitor} as checkpoint metric.")
         default_modelckpt_cfg["params"]["monitor"] = model.monitor
-        default_modelckpt_cfg["params"]["save_top_k"] = 3
+        default_modelckpt_cfg["params"]["save_top_k"] = -1
 
     if "modelcheckpoint" in lightning_config:
         modelckpt_cfg = lightning_config.modelcheckpoint

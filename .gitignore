@@ -57,3 +57,6 @@ vision_datasets/*
 results/*
 src/outputs/*
 outputs/*
+logs/*
+src/weight_diffusion/baselines/wandb/*
+src/weight_diffusion/baselines/vision_datasets/*
