@@ -80,9 +80,9 @@ ldm_config:
           num_res_blocks: 2
           channel_mult: [ 1, 2, 4]
           num_heads: 8
-          # use_spatial_transformer: True
-          # transformer_depth: 1
-          # context_dim: 77
+          use_spatial_transformer: True
+          transformer_depth: 1
+          context_dim: 3
           use_checkpoint: False
           legacy: False
       first_stage_config:
