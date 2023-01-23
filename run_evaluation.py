@@ -101,9 +101,9 @@ def main(config: omegaconf.DictConfig):
     targets_dict = {}
     sampled_checkpoints_path = config.get("pickled_sampled_checkpoints_dir", None)
     if sampled_checkpoints_path:
-        with open(f"{sampled_checkpoints_path}/sampled_checkpoints_path", "rb") as file:
+        with open(f"{sampled_checkpoints_path}/sampled_checkpoints_path.pkl", "rb") as file:
             sampled_mnist_model_checkpoints_dict = pickle.load(file=file)
-        with open(f"{sampled_checkpoints_path}/targets_dict", "rb") as file:
+        with open(f"{sampled_checkpoints_path}/targets_dict.pkl", "rb") as file:
             targets_dict = pickle.load(file=file)
     else:
         # Sampling checkpoints based on method under evaluation
@@ -118,7 +118,7 @@ def main(config: omegaconf.DictConfig):
         elif config.sampling_method == "ldm":
             ldm = instantiate_ldm(config.ldm_config)
             encoder = instantiate_encoder(config.encoder_config)
-            tokenizer = initiate_tokenizer(config.tokenizer_config)
+            # tokenizer = initiate_tokenizer(config.tokenizer_config)
             (
                 sampled_mnist_model_checkpoints_dict,
                 targets_dict,
@@ -128,7 +128,7 @@ def main(config: omegaconf.DictConfig):
                 layer_list=layer_list,
                 ldm=ldm,
                 encoder=encoder,
-                tokenizer=tokenizer,
+                # tokenizer=tokenizer,
                 device=config.device
             )
         else:
