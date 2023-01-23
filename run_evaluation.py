@@ -106,36 +106,47 @@ def main(config: omegaconf.DictConfig):
         index_dict = json.load(index_json)
     layer_list = index_dict["layer"]
 
-    # Sampling checkpoints based on method under evaluation
-    if config.sampling_method == "Gpt":
-        diffusion, gpt_model, dataset = instantiate_gpt(config.gpt_config)
-        cur_device = torch.cuda.current_device()
-        gpt_model = gpt_model.cuda(device=cur_device)
-        (
-            sampled_mnist_model_checkpoints_dict,
-            targets_dict,
-        ) = sample_checkpoint_from_gpt(config.sampling_config, model_config, layer_list, diffusion, gpt_model, dataset)
-    elif config.sampling_method == "ldm":
-        ldm = instantiate_ldm(config.ldm_config)
-        encoder = instantiate_encoder(config.encoder_config)
-        tokenizer = initiate_tokenizer(config.tokenizer_config)
-        (
-            sampled_mnist_model_checkpoints_dict,
-            targets_dict,
-        ) = sample_checkpoints_from_ldm(
-            sampling_config=config.sampling_config,
-            model_config=model_config,
-            layer_list=layer_list,
-            ldm=ldm,
-            encoder=encoder,
-            tokenizer=tokenizer,
-            device=config.device
-        )
+    # Sample checkpoints
+    targets_dict = {}
+    sampled_checkpoints_path = config.get("pickled_sampled_checkpoints_dir", None)
+    if sampled_checkpoints_path:
+        with open(f"{sampled_checkpoints_path}/sampled_checkpoints_path.pkl", "rb") as file:
+            sampled_mnist_model_checkpoints_dict = pickle.load(file=file)
+        with open(f"{sampled_checkpoints_path}/targets_dict.pkl", "rb") as file:
+            targets_dict = pickle.load(file=file)
     else:
-        raise NotImplementedError
+        # Sampling checkpoints based on method under evaluation
+        if config.sampling_method == "Gpt":
+            diffusion, gpt_model, dataset = instantiate_gpt(config.gpt_config)
+            cur_device = torch.cuda.current_device()
+            gpt_model = gpt_model.cuda(device=cur_device)
+            (
+                sampled_mnist_model_checkpoints_dict,
+                targets_dict,
+            ) = sample_checkpoint_from_gpt(config.sampling_config, model_config, layer_list, diffusion, gpt_model, dataset)
+        elif config.sampling_method == "ldm":
+            ldm = instantiate_ldm(config.ldm_config)
+            encoder = instantiate_encoder(config.encoder_config)
+            # tokenizer = initiate_tokenizer(config.tokenizer_config)
+            (
+                sampled_mnist_model_checkpoints_dict,
+                targets_dict,
+            ) = sample_checkpoints_from_ldm(
+                sampling_config=config.sampling_config,
+                model_config=model_config,
+                layer_list=layer_list,
+                ldm=ldm,
+                encoder=encoder,
+                # tokenizer=tokenizer,
+                device=config.device
+            )
+        else:
+            raise NotImplementedError
 
-    with open("/Users/alexanderlontke/Desktop/sampled_mnist_model_checkpoints_dict.pkl", "wb") as file:
+    with open("./sampled_checkpoints_path", "wb") as file:
         pickle.dump(sampled_mnist_model_checkpoints_dict, file=file)
+    with open("./targets_dict", "wb") as file:
+        pickle.dump(targets_dict, file=file)
 
     models_to_evaluate = {}
     first = True
@@ -147,7 +158,7 @@ def main(config: omegaconf.DictConfig):
         models_to_evaluate[prompt] = (model, targets_dict[prompt])
         first = False
 
-    evaluate(config, models_to_evaluate)
+    evaluate(config, models_to_evaluate, model_config=model_config)
 
 
 if __name__ == "__main__":
