@@ -77,7 +77,7 @@ def evaluate(
 @hydra.main(config_path="./configs/evaluate", config_name="config.yaml")
 def main(config: omegaconf.DictConfig):
     # initiate wandb logging of evaluation
-    wandb.init(**config.wandb_config, config=config)
+    wandb.init(**config.wandb_config, config=config.__dict__)
 
     # Set global seed
     seed_everything(config.seed)
