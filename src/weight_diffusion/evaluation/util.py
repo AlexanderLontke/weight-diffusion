@@ -122,7 +122,7 @@ def sample_checkpoints_from_ldm(
             sampled_checkpoint = generate_checkpoints_from_weights(
                 sampled_weights, model_config, layer_list
             )
-            sampling_steps_string = f" sampling_steps{steps}"
+            sampling_steps_string = f"_sampling_steps_{steps}"
             sampled_mnist_model_checkpoints_dict[prompt_key + sampling_steps_string] = sampled_checkpoint
             # Return dictionary containing target metrics for each prompt
             targets_dict[prompt_key + sampling_steps_string] = prompt_statistics
