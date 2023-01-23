@@ -40,38 +40,47 @@ def evaluate(
     )
 
     log_dict = {}
-    current_epoch = 0
-    for finetune_epoch in tqdm(
-        config.finetune_config.finetune_epochs, desc="Evaluating sampled weights"
-    ):
-        epochs_to_train = finetune_epoch - current_epoch
-        current_epoch = finetune_epoch
-        for prompt, (model, targets) in models_to_evaluate.items():
-            if finetune_epoch == 0:
-                # Instantiate logging dict
-                log_dict[prompt] = {}
-                # Instantiate tracking of training
-                log_dict[prompt]["train_running_loss"] = []
-                log_dict[prompt]["train_running_accuracy"] = []
-                log_dict[prompt]["targets"] = dict(targets)
-            else:
+    prompt_targets = {}
+    prompt_actual = {}
+    for prompt, (model, targets) in  tqdm(models_to_evaluate.items(), desc="Evaluating sampled weights"):
+        # Instantiate logging dict
+        log_dict[prompt] = {}
+        # Instantiate tracking of training
+        log_dict[prompt]["train_running_loss"] = []
+        log_dict[prompt]["train_running_accuracy"] = []
+        log_dict[prompt]["targets"] = dict(targets)
+
+        current_epoch = 0
+        evaluation_dict = evaluate_MNIST_CNN(model, evaluation_datasets, current_epoch)
+        log_dict[prompt][f"epoch_{current_epoch}"] = evaluation_dict
+
+        for k in targets.keys():
+            if k not in prompt_targets.keys():
+                prompt_targets[k] = []
+                prompt_actual[k] = []
+            prompt_targets[k].append(targets[k]) 
+            prompt_actual[k].append(evaluation_dict[k]) 
+
+        if prompt in config.finetune_config.prompts_to_finetune:
+            for finetune_epoch in tqdm(
+                config.finetune_config.finetune_epochs, desc="Evaluating sampled weights"
+            ):
+                epochs_to_train = finetune_epoch - current_epoch
+                current_epoch = finetune_epoch
+
                 _, progress_dict = finetune_MNIST_CNN(
                     model, epochs_to_train, evaluation_datasets["train"]
                 )
                 for k in ["train_running_loss", "train_running_accuracy"]:
                     log_dict[prompt][k] += progress_dict[k]
-
-            evaluation_dict = evaluate_MNIST_CNN(model, evaluation_datasets, finetune_epoch)
-            
-            log_dict[prompt][f"epoch_{finetune_epoch}"] = evaluation_dict
-
-            # if first epoch then calculate prompt alignment
-            if finetune_epoch == 0:
-                prompt_alignment = calculate_ldm_prompt_alignment(
-                    evaluation_dict=evaluation_dict, targets=targets
-                )
-                log_dict[prompt]["prompt_alignment"] = prompt_alignment
                 
+                evaluation_dict = evaluate_MNIST_CNN(model, evaluation_datasets, finetune_epoch)
+            
+                log_dict[prompt][f"epoch_{finetune_epoch}"] = evaluation_dict
+
+    log_dict["prompt alignment"] = calculate_prompt_alignment(prompt_actual, prompt_targets)
+
+
     log_dictionary_locally(
         logging_dict=log_dict,
         logging_path="./logs.json"

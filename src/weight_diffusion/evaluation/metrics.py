@@ -2,7 +2,7 @@ import numpy as np
 from einops import repeat
 
 
-def calculate_ldm_prompt_alignment(evaluation_dict, targets):
+def calculate_prompt_alignment(prompt_actual, prompt_targets):
     """
     Calculate the prompt alignment based on the R2 statistic
     :param evaluation_dict: dictionary containing actual statistics achieved by a sampled checkpoint
@@ -11,8 +11,10 @@ def calculate_ldm_prompt_alignment(evaluation_dict, targets):
     R2 of the values and targetds
     """
     rsq = []
-    for k in evaluation_dict.keys():
-        rsq += calculate
+    for k in prompt_targets.keys():
+        print('Calculating R2 for key:', k)
+        rsq += calculate_r2_prompt_alignment(prompt_actual[k], prompt_targets[k])
+        print('r2', rsq)
     mean_rsq = np.mean(rsq)
     return mean_rsq
 
