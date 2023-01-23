@@ -92,7 +92,7 @@ def sample_checkpoints_from_ldm(
     sampled_mnist_model_checkpoints_dict = {}
     targets_dict = {}
     for prompt_statistics in [
-        v for _, v in sampling_config.evaluation_prompt_statistics.items()
+        v for _, v in sampling_config.evaluation_prompt_statistics_ldm.items()
     ]:
         prompt = new_prompt_from_results_dict(prompt_statistics, device)
         prompt_latent_rep = prompt

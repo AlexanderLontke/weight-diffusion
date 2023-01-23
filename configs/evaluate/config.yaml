@@ -351,6 +351,228 @@ sampling_config:
       validation_acc: 0.8857
       test_loss: 0.3315613865852356
       test_acc: 0.901
+  evaluation_prompt_statistics_ldm:
+    prompt_1:
+      train_acc: 0.0
+      validation_acc: 0.0
+      test_acc: 0.0
+    prompt_2:
+      train_acc: 0.0
+      validation_acc: 0.0
+      test_acc: 0.0
+    prompt_3:
+      train_acc: 0.0
+      validation_acc: 0.0
+      test_acc: 0.0
+    prompt_4:
+      train_acc: 0.0
+      validation_acc: 0.0
+      test_acc: 0.0
+    prompt_5:
+      train_acc: 0.0
+      validation_acc: 0.0
+      test_acc: 0.0
+    prompt_11:
+      train_acc: 0.1
+      validation_acc: 0.1
+      test_acc: 0.1
+    prompt_12:
+      train_acc: 0.1
+      validation_acc: 0.1
+      test_acc: 0.1
+    prompt_13:
+      train_acc: 0.1
+      validation_acc: 0.1
+      test_acc: 0.1
+    prompt_14:
+      train_acc: 0.1
+      validation_acc: 0.1
+      test_acc: 0.1
+    prompt_15:
+      train_acc: 0.1
+      validation_acc: 0.1
+      test_acc: 0.1
+    prompt_21:
+      train_acc: 0.2
+      validation_acc: 0.2
+      test_acc: 0.2
+    prompt_22:
+      train_acc: 0.2
+      validation_acc: 0.2
+      test_acc: 0.2
+    prompt_23:
+      train_acc: 0.2
+      validation_acc: 0.2
+      test_acc: 0.2
+    prompt_24:
+      train_acc: 0.2
+      validation_acc: 0.2
+      test_acc: 0.2
+    prompt_25:
+      train_acc: 0.2
+      validation_acc: 0.2
+      test_acc: 0.2
+    prompt_31:
+      train_acc: 0.3
+      validation_acc: 0.3
+      test_acc: 0.3
+    prompt_32:
+      train_acc: 0.3
+      validation_acc: 0.3
+      test_acc: 0.3
+    prompt_33:
+      train_acc: 0.3
+      validation_acc: 0.3
+      test_acc: 0.3
+    prompt_34:
+      train_acc: 0.3
+      validation_acc: 0.3
+      test_acc: 0.3
+    prompt_35:
+      train_acc: 0.3
+      validation_acc: 0.3
+      test_acc: 0.3
+    prompt_41:
+      train_acc: 0.4
+      validation_acc: 0.4
+      test_acc: 0.4
+    prompt_42:
+      train_acc: 0.4
+      validation_acc: 0.4
+      test_acc: 0.4
+    prompt_43:
+      train_acc: 0.4
+      validation_acc: 0.4
+      test_acc: 0.4
+    prompt_44:
+      train_acc: 0.4
+      validation_acc: 0.4
+      test_acc: 0.4
+    prompt_45:
+      train_acc: 0.4
+      validation_acc: 0.4
+      test_acc: 0.4
+    prompt_51:
+      train_acc: 0.5
+      validation_acc: 0.5
+      test_acc: 0.5
+    prompt_52:
+      train_acc: 0.5
+      validation_acc: 0.5
+      test_acc: 0.5
+    prompt_53:
+      train_acc: 0.5
+      validation_acc: 0.5
+      test_acc: 0.5
+    prompt_54:
+      train_acc: 0.5
+      validation_acc: 0.5
+      test_acc: 0.5
+    prompt_55:
+      train_acc: 0.5
+      validation_acc: 0.5
+      test_acc: 0.5
+    prompt_61:
+      train_acc: 0.6
+      validation_acc: 0.6
+      test_acc: 0.6
+    prompt_62:
+      train_acc: 0.6
+      validation_acc: 0.6
+      test_acc: 0.6
+    prompt_63:
+      train_acc: 0.6
+      validation_acc: 0.6
+      test_acc: 0.6
+    prompt_64:
+      train_acc: 0.6
+      validation_acc: 0.6
+      test_acc: 0.6
+    prompt_65:
+      train_acc: 0.6
+      validation_acc: 0.6
+      test_acc: 0.6
+    prompt_71:
+      train_acc: 0.7
+      validation_acc: 0.7
+      test_acc: 0.7
+    prompt_72:
+      train_acc: 0.7
+      validation_acc: 0.7
+      test_acc: 0.7
+    prompt_73:
+      train_acc: 0.7
+      validation_acc: 0.7
+      test_acc: 0.7
+    prompt_74:
+      train_acc: 0.7
+      validation_acc: 0.7
+      test_acc: 0.7
+    prompt_75:
+      train_acc: 0.7
+      validation_acc: 0.7
+      test_acc: 0.7
+    prompt_81:
+      train_acc: 0.8
+      validation_acc: 0.8
+      test_acc: 0.8
+    prompt_82:
+      train_acc: 0.8
+      validation_acc: 0.8
+      test_acc: 0.8
+    prompt_83:
+      train_acc: 0.8
+      validation_acc: 0.8
+      test_acc: 0.8
+    prompt_84:
+      train_acc: 0.8
+      validation_acc: 0.8
+      test_acc: 0.8
+    prompt_85:
+      train_acc: 0.8
+      validation_acc: 0.8
+      test_acc: 0.8
+    prompt_91:
+      train_acc: 0.9
+      validation_acc: 0.9
+      test_acc: 0.9
+    prompt_92:
+      train_acc: 0.9
+      validation_acc: 0.9
+      test_acc: 0.9
+    prompt_93:
+      train_acc: 0.9
+      validation_acc: 0.9
+      test_acc: 0.9
+    prompt_94:
+      train_acc: 0.9
+      validation_acc: 0.9
+      test_acc: 0.9
+    prompt_95:
+      train_acc: 0.9
+      validation_acc: 0.9
+      test_acc: 0.9
+    prompt_101:
+      train_acc: 1.0
+      validation_acc: 1.0
+      test_acc: 1.0
+    prompt_102:
+      train_acc: 1.0
+      validation_acc: 1.0
+      test_acc: 1.0
+    prompt_103:
+      train_acc: 1.0
+      validation_acc: 1.0
+      test_acc: 1.0
+    prompt_104:
+      train_acc: 1.0
+      validation_acc: 1.0
+      test_acc: 1.0
+    prompt_105:
+      train_acc: 1.0
+      validation_acc: 1.0
+      test_acc: 1.0
+
 
 finetune_config:
   finetune_epochs: [0, 1, 5, 25]
