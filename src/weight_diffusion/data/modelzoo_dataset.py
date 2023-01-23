@@ -1,7 +1,7 @@
 import os
 import json
 import csv
-from typing import Tuple, List, Dict, Union, Callable
+from typing import Tuple, List, Dict, Union, Callable, Optional
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -76,6 +76,7 @@ class ModelZooDataset(Dataset):
         permute_layers: Union[List[int], str] = "all",
         number_of_permutations: int = 100,
         permutation_mode="random",
+        model_directory_paths: Optional[List[str]]=None,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -112,11 +113,12 @@ class ModelZooDataset(Dataset):
         self.checkpoint_property_of_interest = checkpoint_property_of_interest
 
         # Get all model directories and perform train_val_test split
-        model_directory_paths = perform_train_test_validation_split(
-            list_to_split=get_all_directories_for_a_path(data_dir),
-            dataset_split_ratios=self.dataset_split_ratios,
-            split=self.split,
-        )
+        if not model_directory_paths:
+            model_directory_paths = perform_train_test_validation_split(
+                list_to_split=get_all_directories_for_a_path(data_dir),
+                dataset_split_ratios=self.dataset_split_ratios,
+                split=self.split,
+            )
 
         # Load model checkpoints
         self.checkpoints_dict = {}  # Dict[Model Nr.][Checkpoint Nr.] = model_state_dict
