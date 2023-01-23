@@ -80,9 +80,9 @@ ldm_config:
           num_res_blocks: 2
           channel_mult: [ 1, 2, 4]
           num_heads: 8
-          # use_spatial_transformer: True
-          # transformer_depth: 1
-          # context_dim: 77
+          use_spatial_transformer: True
+          transformer_depth: 1
+          context_dim: 3
           use_checkpoint: False
           legacy: False
       first_stage_config:
@@ -93,7 +93,9 @@ ldm_config:
         target: torch.nn.Identity
 
 encoder_config: &encoder_config
-  encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
+  device: *device
+  encoder_checkpoint_path: /Users/alexanderlontke/Documents/Uni/St. Gallen/HS_22_23/integrative_master_project/data_hr/hyper_representations/mnist
+  #/netscratch2/kreynisson/data/hyper_representations/mnist
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:
@@ -293,7 +295,7 @@ sampling_config:
       validation_acc: 0.1999
       test_loss: 2.072357416152954
       test_acc: 0.1995
-    promtp_2:
+    prompt_2:
       train_loss: 1.8915899208545686
       train_acc: 0.26984
       validation_loss: 1.877575159072876
@@ -307,7 +309,7 @@ sampling_config:
       validation_acc: 0.362
       test_loss: 1.6803345680236816
       test_acc: 0.3606
-    promtp_4:
+    prompt_4:
       train_loss: 1.5255577799201012
       train_acc: 0.4363
       validation_loss: 1.4922499656677246
@@ -335,7 +337,7 @@ sampling_config:
       validation_acc: 0.7626
       test_loss: 0.6469360589981079
       test_acc: 0.7737
-    prompt_8: 
+    prompt_8:
       train_loss: 0.4302793982863426
       train_acc: 0.86308
       validation_loss: 0.46385976672172546

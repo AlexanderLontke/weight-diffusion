@@ -1,9 +1,8 @@
 import json
-import re
 from pathlib import Path
 from typing import Dict, Tuple
 
-import torch
+import pickle
 import hydra
 import omegaconf
 import wandb
@@ -80,7 +79,7 @@ def evaluate(
 @hydra.main(config_path="./configs/evaluate", config_name="config.yaml")
 def main(config: omegaconf.DictConfig):
     # initiate wandb logging of evaluation
-    wandb.init(**config.wandb_config)
+    wandb.init(**config.wandb_config, config=config.__dict__)
 
     # Set global seed
     seed_everything(config.seed)
@@ -116,9 +115,13 @@ def main(config: omegaconf.DictConfig):
             ldm=ldm,
             encoder=encoder,
             tokenizer=tokenizer,
+            device=config.device
         )
     else:
         raise NotImplementedError
+
+    with open("/Users/alexanderlontke/Desktop/sampled_mnist_model_checkpoints_dict.pkl", "wb") as file:
+        pickle.dump(sampled_mnist_model_checkpoints_dict, file=file)
 
     models_to_evaluate = {}
     first = True

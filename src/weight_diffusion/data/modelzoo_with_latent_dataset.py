@@ -17,7 +17,7 @@ class ModelZooWithLatentDataset(ModelZooDataset):
         self,
         data_dir: Path,
         encoder_config: Dict,
-        device: torch.device,
+        device: str,
         tokenizer_config: Dict,
         prompt_embedding_max_length=77,
         **kwargs,

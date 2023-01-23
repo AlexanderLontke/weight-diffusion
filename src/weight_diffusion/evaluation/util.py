@@ -30,6 +30,14 @@ def prompt_from_results_dict(results_dict):
     )
     return prompt
 
+def new_prompt_from_results_dict(results_dict, device):
+    return torch.Tensor([[
+        results_dict['train_acc'], 
+        results_dict['validation_acc'], 
+        results_dict['test_acc']
+        ]]).to(device)
+        
+        
 def sample_checkpoint_from_gpt(sampling_config, model_config, layer_list, diffusion, model, dataset):
     sampled_mnist_model_checkpoints_dict = {}
     targets_dict = {}
@@ -79,40 +87,42 @@ def sample_checkpoints_from_ldm(
     ldm,
     encoder,
     tokenizer,
+    device,
 ) -> Tuple[Dict[str, torch.Tensor], Dict[str, Dict[str, float]]]:
     sampled_mnist_model_checkpoints_dict = {}
     targets_dict = {}
     for prompt_statistics in [
         v for _, v in sampling_config.evaluation_prompt_statistics.items()
     ]:
-        prompt = prompt_from_results_dict(prompt_statistics)
-        prompt_latent_rep = tokenizer(
-            prompt,
-            max_length=sampling_config.prompt_embedding_max_length,
-            return_tensors="pt",
-            padding="max_length",
-        )["input_ids"]
-        uc = tokenizer(
-            "",
-            max_length=sampling_config.prompt_embedding_max_length,
-            return_tensors="pt",
-            padding="max_length",
-        )["input_ids"]
+        prompt = new_prompt_from_results_dict(prompt_statistics, device)
+        prompt_latent_rep = prompt
+        uc = torch.Tensor([
+            [0.1, 0.1, 0.1]
+        ]
+        ).to(device)
+
         sampled_weights_latent = sample_from_prompt(
             prompt=prompt_latent_rep,
             model=ldm,
             sampling_steps=sampling_config.sampling_steps,
             shape=tuple(sampling_config.shape),
-            guidance_scale=7.5,
+            guidance_scale=1.0,
             uc=uc,
         )
+        print("################    LATENT       ###############")
+        print(sampled_weights_latent)
+        print("################################################")
+
         sampled_weights = encoder.forward_decoder(sampled_weights_latent)
+        print("################    WEIGHTS       ###############")
+        print(sampled_weights)
+        print("################################################")
         sampled_checkpoint = generate_checkpoints_from_weights(
             sampled_weights, model_config, layer_list
         )
-        sampled_mnist_model_checkpoints_dict[prompt] = sampled_checkpoint
+        sampled_mnist_model_checkpoints_dict[str(prompt)] = sampled_checkpoint
         # Return dictionary containing target metrics for each prompt
-        targets_dict[prompt] = prompt_statistics
+        targets_dict[str(prompt)] = prompt_statistics
 
     return sampled_mnist_model_checkpoints_dict, targets_dict
 
@@ -121,7 +131,7 @@ def instantiate_encoder(encoder_config):
     encoder = instantiate_from_config(encoder_config)
     hyper_representations_path = Path(encoder_config["encoder_checkpoint_path"])
     encoder_checkpoint_path = hyper_representations_path.joinpath("checkpoint_ae.pt")
-    encoder_checkpoint = torch.load(encoder_checkpoint_path)
+    encoder_checkpoint = torch.load(encoder_checkpoint_path, map_location=encoder_config["device"])
     encoder.model.load_state_dict(encoder_checkpoint)
     return encoder
 
