@@ -3,6 +3,8 @@ seed: 1337
 device: &device cuda
 sampling_method: ldm #Gpt
 data_dir: &data_dir /netscratch2/kreynisson/data/tune_zoo_mnist_uniform
+pickled_sampled_checkpoints_dir: /netscratch2/alontke/weight-diffusion/sampled_weights/2023-01-23/16-57-24
+
 
 wandb_config:
   name: ${exp_name}
