@@ -3,9 +3,14 @@ from pathlib import Path
 import torch
 import json
 
+from copy import deepcopy
+
 from Gpt.diffusion import create_diffusion
 from Gpt.models.transformer import Gpt
-from Gpt.latent_walk_helpers import create_latent_walk_for_cnn, slerpify
+from Gpt.vis import synth
+from Gpt.utils import (
+    requires_grad
+)
 
 from ldm.util import instantiate_from_config
 from weight_diffusion.execution.util import load_model_from_config
@@ -25,80 +30,46 @@ def prompt_from_results_dict(results_dict):
     )
     return prompt
 
-
-def ddim_synth(
-    diffusion,
-    G,
-    loss_target,        # The prompted loss/error/return: shape (N, 1)
-    loss_prev,          # The starting loss/error/return: shape (N, 1)
-    w_prev,             # The starting parameter vector: shape (N, D)
-    **ddim_sample_loop_kwargs
-):
-    """
-    Samples from G.pt via the reverse diffusion process using DDIM sampling.
-    Specifically, this function draws a sample from p(theta^*|prompt_loss,starting_loss,starting_theta).
-    """
-    assert loss_target.size(0) == loss_prev.size(0) == w_prev.size(0)
-
-    model_kwargs = {
-        'loss_target': loss_target,
-        'loss_prev': loss_prev,
-        'x_prev': w_prev
-    }
-
-    shape = w_prev.shape
-    sample = diffusion.ddim_sample_loop(
-        G,
-        shape,
-        clip_denoised=False,
-        model_kwargs=model_kwargs,
-        device='cuda',
-        **ddim_sample_loop_kwargs
-    )
-
-    return sample
-
-
-
-def sample_checkpoint_from_gpt(sampling_config, diffusion, model, dataset, **ddim_sample_loop_kwargs):
-    loss_targets = []
-    loss_prev = []
-    use_fixed_input_theta = True
-    n_samples = len(sampling_config.evaluation_prompt_statistics.items())
-    # TODO change to config value
-    n_steps = 120
-    seed = 1337
-    dim = dataset.get_run_network(run_index=0, iter=0, normalize=True, augment=False).size(0)
-    run_indices = list(range(seed * n_samples, (seed + 1) * n_samples))
-    noise = slerpify(torch.randn(1, n_samples, dim, device="cuda"), n_steps)  # Create looping noise
-    nets, lps = [], []  # nets = input (starting) parameters, lps = starting losses/errors
-    for run_index in run_indices:
-        net = dataset.get_run_network(run_index=run_index, iter=0, normalize=True, augment=False).unsqueeze(0).cuda()
-        lp = dataset.get_run_losses(run_index=run_index)[0].view(1).to("cuda")
-        nets.append(net)
-        lps.append(lp)
-    nets = slerpify(torch.cat(nets, 0).view(1, n_samples, dim), n_steps)  # (n_videos, n_samples, n_steps, D)
-    if use_fixed_input_theta:
-        # Use the same starting parameters for every frame in the video:
-        nets = nets[0, 0, 0].view(1, 1, 1, -1).repeat(1, n_samples, n_steps, 1)  # (n_videos, n_samples, n_steps, D)
-    # Use a constant starting loss/error to better isolate the effect of sampling noise:
-
+def sample_checkpoint_from_gpt(sampling_config, model_config, layer_list, diffusion, model, dataset):
     sampled_mnist_model_checkpoints_dict = {}
     targets_dict = {}
-    prev = -1
+    prev_checkpoint = "hello"
+    params0 = dataset[0]['parameters_0']
+    print(dataset[0]['validation_loss_0'])
+    params0_loss = dataset[0]['validation_loss_0']
 
     for prompt_statistics in [
         v for _, v in sampling_config.evaluation_prompt_statistics.items()
     ]:
-        if prev < 0:
-            prev = prompt_statistics['test_loss']
-            continue
+        loss_prev = [params0_loss]
+        target = prompt_statistics['validation_loss']
+        loss_targets = [target]
+        w_prev = [params0]
+        print('loss_prev', loss_prev)
+        print('loss_targets', loss_targets)
+
+        targets_dict[str(target)] = prompt_statistics
+        sampled_weights = synth(diffusion, model, torch.Tensor(loss_targets).view(-1, 1).cuda(),  torch.Tensor(loss_prev).view(-1, 1).cuda(), torch.stack(w_prev).cuda())
+
+        unnormalised_sampled_weights = dataset.unnormalize(sampled_weights)
+        #print('un', unnormalised_sampled_weights)
+        print('normalised same', torch.all(sampled_weights.eq(unnormalised_sampled_weights)))
         
-        loss_prev.append(prev)
-        prev = prompt_statistics['test_loss']
-        loss_targets.append(prev)
-    
-    return ddim_synth(diffusion, model, torch.Tensor(loss_targets).view(-1, 1),  torch.Tensor(loss_prev).view(-1, 1), nets.view(-1, dim), noise=noise.view(-1, dim), progress=True)
+        sampled_checkpoint = generate_checkpoints_from_weights(
+            unnormalised_sampled_weights, model_config, layer_list
+        )
+        #print('sampled', sampled_checkpoint)
+        sampled_mnist_model_checkpoints_dict[str(target)] = sampled_checkpoint
+        #print('sampled_checkpoint', sampled_checkpoint)
+
+        if not isinstance(prev_checkpoint, str):
+            print('same weights', torch.all(prev_weights.eq(unnormalised_sampled_weights)))
+            #print('same checkpoint', torch.all(prev_checkpoint.eq(sampled_checkpoint)))
+
+        prev_weights = unnormalised_sampled_weights
+        prev_checkpoint = sampled_checkpoint
+
+    return sampled_mnist_model_checkpoints_dict, targets_dict
 
 
 def sample_checkpoints_from_ldm(
@@ -178,20 +149,19 @@ def instantiate_gpt(gpt_config):
     
     # Construct datasets
     dataset_split_ratios = [7, 3]
-    train_dataset = GptDataset(
+    test_dataset = GptDataset(
         data_dir=Path(gpt_config.dataset.path),
         checkpoint_property_of_interest=gpt_config.dataset.train_metric,
         openai_coefficient=gpt_config.dataset.openai_coefficient,
-        split="train",
+        split="test",
         dataset_split_ratios=dataset_split_ratios,
+        use_permutation=False,
     )
-
-
 
     # Construct the model and optimizer
     model = Gpt(
-        parameter_sizes=train_dataset.parameter_sizes,
-        parameter_names=train_dataset.parameter_names,
+        parameter_sizes=test_dataset.parameter_sizes,
+        parameter_names=test_dataset.parameter_names,
         predict_xstart=gpt_config.transformer.predict_xstart,
         absolute_loss_conditioning=gpt_config.transformer.absolute_loss_conditioning,
         chunk_size=gpt_config.transformer.chunk_size,
@@ -208,7 +178,12 @@ def instantiate_gpt(gpt_config):
         embd_pdrop=gpt_config.transformer.dropout_prob,
     )
 
-    return diffusion, model, train_dataset
+    # Resume from checkpoint
+    resume_checkpoint = torch.load('/netscratch2/kreynisson/weight-diffusion/src/weight_diffusion/baselines/results/dgx2_zoo_mnist/checkpoints/best.pt', 
+    map_location=lambda storage, loc: storage)
+    model.load_state_dict(resume_checkpoint['G'])
+
+    return diffusion, model, test_dataset
 
 def log_dictionary_locally(logging_dict: Dict, logging_path: str):
     logging_path: Path = Path(logging_path)

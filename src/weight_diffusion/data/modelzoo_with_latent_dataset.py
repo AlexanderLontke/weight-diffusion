@@ -99,6 +99,7 @@ class ModelZooWithLatentDataset(ModelZooDataset):
                 padding="max_length",
             )["input_ids"]
             torch.save(prompt_latent_rep, prompt_path)
+            print("GENERATED PROMPT", prompt_path)
 
         return prompt_latent_rep
 
@@ -120,10 +121,16 @@ class ModelZooWithLatentDataset(ModelZooDataset):
                 "checkpoints_latent_rep_v2" + "_p" + str(i),
             )
 
-            # Fetch latent representation from storage or generate a new one and save it
-            if os.path.isfile(checkpoint_latent_rep_path):
+            generate = False
+
+            try: 
                 checkpoint_latent_rep = torch.load(checkpoint_latent_rep_path)
-            else:
+            except:
+                print("Broken checkpoint", checkpoint_latent_rep_path)
+                generate = True
+
+            # Fetch latent representation from storage or generate a new one and save it
+            if generate:
                 # Need to convert from checkpoint to a list of checkpoints
                 permuted_checkpoint = self.permutation.permute_checkpoint(checkpoint, i)
                 flattened_permuted_checkpoint = get_flat_params(permuted_checkpoint)
