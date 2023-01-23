@@ -17,7 +17,6 @@ from weight_diffusion.evaluation.eval_task import (
     evaluate_MNIST_CNN,
     instantiate_MNIST_CNN,
 )
-from weight_diffusion.evaluation.metrics import calculate_ldm_prompt_alignment
 from weight_diffusion.evaluation.util import (
     sample_checkpoints_from_ldm,
     sample_checkpoint_from_gpt,
@@ -55,6 +54,8 @@ def evaluate(
         log_dict[prompt][f"epoch_{current_epoch}"] = evaluation_dict
 
         for k in targets.keys():
+            if k == "baseline":
+                pass
             if k not in prompt_targets.keys():
                 prompt_targets[k] = []
                 prompt_actual[k] = []
@@ -63,7 +64,7 @@ def evaluate(
 
         if prompt in config.finetune_config.prompts_to_finetune:
             for finetune_epoch in tqdm(
-                config.finetune_config.finetune_epochs, desc="Evaluating sampled weights"
+                config.finetune_config.finetune_epochs, desc="Fine-tuning sampled weights"
             ):
                 epochs_to_train = finetune_epoch - current_epoch
                 current_epoch = finetune_epoch
@@ -78,8 +79,8 @@ def evaluate(
             
                 log_dict[prompt][f"epoch_{finetune_epoch}"] = evaluation_dict
 
-    log_dict["prompt alignment"] = calculate_prompt_alignment(prompt_actual, prompt_targets)
-
+    log_dict["prompt_alignment_prompt_actual"] = prompt_actual
+    log_dict["prompt_alignment_prompt_targets"] = prompt_targets
 
     log_dictionary_locally(
         logging_dict=log_dict,
@@ -143,10 +144,10 @@ def main(config: omegaconf.DictConfig):
         else:
             raise NotImplementedError
 
-    with open("./sampled_checkpoints_path", "wb") as file:
-        pickle.dump(sampled_mnist_model_checkpoints_dict, file=file)
-    with open("./targets_dict", "wb") as file:
-        pickle.dump(targets_dict, file=file)
+        with open("./sampled_checkpoints_path", "wb") as file:
+            pickle.dump(sampled_mnist_model_checkpoints_dict, file=file)
+        with open("./targets_dict", "wb") as file:
+            pickle.dump(targets_dict, file=file)
 
     models_to_evaluate = {}
     first = True
