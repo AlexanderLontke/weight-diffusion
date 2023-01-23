@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import pickle
 import hydra
 import omegaconf
 import wandb
+import torch
 from tqdm import tqdm
 from ghrp.model_definitions.def_net import NNmodule
 from pytorch_lightning import seed_everything
@@ -31,8 +32,12 @@ from weight_diffusion.evaluation.util import (
 def evaluate(
     config: omegaconf.DictConfig,
     models_to_evaluate: Dict[str, Tuple[NNmodule, Dict[str, float]]],
+    model_config: Dict[str, Any],
 ):
-    evaluation_datasets = get_evaluation_datasets(config.evaluation_dataset_config)
+    evaluation_datasets = get_evaluation_datasets(
+        evaluation_dataset_config=config.evaluation_dataset_config,
+        model_config=model_config,
+    )
 
     log_dict = {}
     current_epoch = 0
@@ -51,7 +56,7 @@ def evaluate(
                 log_dict[prompt]["targets"] = dict(targets)
             else:
                 _, progress_dict = finetune_MNIST_CNN(
-                    model, epochs_to_train, evaluation_datasets["train"], prompt
+                    model, epochs_to_train, evaluation_datasets["train"]
                 )
                 for k in ["train_running_loss", "train_running_accuracy"]:
                     log_dict[prompt][k] += progress_dict[k]

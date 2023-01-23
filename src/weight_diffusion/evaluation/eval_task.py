@@ -4,14 +4,15 @@ from torchvision import transforms
 from torchvision import datasets
 
 
-def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint = None, device = None):
+def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint=None, device=None):
     mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=2)
     if checkpoint is not None:
         mnist_cnn.model.load_state_dict(checkpoint)
     mnist_cnn = mnist_cnn.to(torch.device(device))
     return mnist_cnn
 
-def get_evaluation_datasets(evaluation_dataset_config):
+
+def get_evaluation_datasets(evaluation_dataset_config, model_config):
     # Same seed as in
     # https://github.com/ModelZoos/ModelZooDataset/blob/main/code/zoo_generators/train_zoo_mnist_uniform.py
     dataset_seed = 42
@@ -41,7 +42,7 @@ def get_evaluation_datasets(evaluation_dataset_config):
 
     # temp dataloaders
     evaluation_datasets["train"] = torch.utils.data.DataLoader(
-        dataset=trainset_raw, batch_size=len(trainset_raw), shuffle=True
+        dataset=trainset_raw, batch_size=model_config["training::batchsize"], shuffle=True
     )
     evaluation_datasets["validation"] = torch.utils.data.DataLoader(
         dataset=valset_raw, batch_size=len(valset_raw), shuffle=True
@@ -53,7 +54,7 @@ def get_evaluation_datasets(evaluation_dataset_config):
     return evaluation_datasets
 
 
-def finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader, prompt):
+def finetune_MNIST_CNN(model: NNmodule, epochs, train_dataloader):
     training_losses = []
     training_accuracy = []
     for epoch in range(epochs):
