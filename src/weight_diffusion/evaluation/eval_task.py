@@ -5,7 +5,7 @@ from torchvision import datasets
 
 
 def instantiate_MNIST_CNN(mnist_cnn_config, checkpoint=None, device=None):
-    mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=2)
+    mnist_cnn = NNmodule(mnist_cnn_config, cuda=(device == "cuda"), verbosity=1)
     if checkpoint is not None:
         mnist_cnn.model.load_state_dict(checkpoint)
     mnist_cnn = mnist_cnn.to(torch.device(device))
