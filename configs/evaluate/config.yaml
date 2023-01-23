@@ -93,7 +93,9 @@ ldm_config:
         target: torch.nn.Identity
 
 encoder_config: &encoder_config
-  encoder_checkpoint_path: /netscratch2/kreynisson/data/hyper_representations/mnist
+  device: *device
+  encoder_checkpoint_path: /Users/alexanderlontke/Documents/Uni/St. Gallen/HS_22_23/integrative_master_project/data_hr/hyper_representations/mnist
+  #/netscratch2/kreynisson/data/hyper_representations/mnist
   target: ghrp.model_definitions.def_simclr_ae_module.SimCLRAEModule
   params:
     config:

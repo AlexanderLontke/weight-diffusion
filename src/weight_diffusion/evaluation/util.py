@@ -159,7 +159,7 @@ def instantiate_encoder(encoder_config):
     encoder = instantiate_from_config(encoder_config)
     hyper_representations_path = Path(encoder_config["encoder_checkpoint_path"])
     encoder_checkpoint_path = hyper_representations_path.joinpath("checkpoint_ae.pt")
-    encoder_checkpoint = torch.load(encoder_checkpoint_path)
+    encoder_checkpoint = torch.load(encoder_checkpoint_path, map_location=encoder_config["device"])
     encoder.model.load_state_dict(encoder_checkpoint)
     return encoder
 
