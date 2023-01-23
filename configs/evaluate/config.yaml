@@ -284,7 +284,7 @@ sampling_config:
   shape:
     - 1
     - 700
-  sampling_steps: 50
+  sampling_steps: [20] #[1, 20, 40, 60, 80, 100]
   data_dir: *data_dir
   prompt_embedding_max_length: 77
   evaluation_prompt_statistics:
@@ -372,26 +372,6 @@ sampling_config:
       train_acc: 0.0
       validation_acc: 0.0
       test_acc: 0.0
-    prompt_11:
-      train_acc: 0.1
-      validation_acc: 0.1
-      test_acc: 0.1
-    prompt_12:
-      train_acc: 0.1
-      validation_acc: 0.1
-      test_acc: 0.1
-    prompt_13:
-      train_acc: 0.1
-      validation_acc: 0.1
-      test_acc: 0.1
-    prompt_14:
-      train_acc: 0.1
-      validation_acc: 0.1
-      test_acc: 0.1
-    prompt_15:
-      train_acc: 0.1
-      validation_acc: 0.1
-      test_acc: 0.1
     prompt_21:
       train_acc: 0.2
       validation_acc: 0.2
@@ -412,26 +392,6 @@ sampling_config:
       train_acc: 0.2
       validation_acc: 0.2
       test_acc: 0.2
-    prompt_31:
-      train_acc: 0.3
-      validation_acc: 0.3
-      test_acc: 0.3
-    prompt_32:
-      train_acc: 0.3
-      validation_acc: 0.3
-      test_acc: 0.3
-    prompt_33:
-      train_acc: 0.3
-      validation_acc: 0.3
-      test_acc: 0.3
-    prompt_34:
-      train_acc: 0.3
-      validation_acc: 0.3
-      test_acc: 0.3
-    prompt_35:
-      train_acc: 0.3
-      validation_acc: 0.3
-      test_acc: 0.3
     prompt_41:
       train_acc: 0.4
       validation_acc: 0.4
@@ -452,26 +412,6 @@ sampling_config:
       train_acc: 0.4
       validation_acc: 0.4
       test_acc: 0.4
-    prompt_51:
-      train_acc: 0.5
-      validation_acc: 0.5
-      test_acc: 0.5
-    prompt_52:
-      train_acc: 0.5
-      validation_acc: 0.5
-      test_acc: 0.5
-    prompt_53:
-      train_acc: 0.5
-      validation_acc: 0.5
-      test_acc: 0.5
-    prompt_54:
-      train_acc: 0.5
-      validation_acc: 0.5
-      test_acc: 0.5
-    prompt_55:
-      train_acc: 0.5
-      validation_acc: 0.5
-      test_acc: 0.5
     prompt_61:
       train_acc: 0.6
       validation_acc: 0.6
@@ -492,26 +432,6 @@ sampling_config:
       train_acc: 0.6
       validation_acc: 0.6
       test_acc: 0.6
-    prompt_71:
-      train_acc: 0.7
-      validation_acc: 0.7
-      test_acc: 0.7
-    prompt_72:
-      train_acc: 0.7
-      validation_acc: 0.7
-      test_acc: 0.7
-    prompt_73:
-      train_acc: 0.7
-      validation_acc: 0.7
-      test_acc: 0.7
-    prompt_74:
-      train_acc: 0.7
-      validation_acc: 0.7
-      test_acc: 0.7
-    prompt_75:
-      train_acc: 0.7
-      validation_acc: 0.7
-      test_acc: 0.7
     prompt_81:
       train_acc: 0.8
       validation_acc: 0.8
@@ -532,26 +452,6 @@ sampling_config:
       train_acc: 0.8
       validation_acc: 0.8
       test_acc: 0.8
-    prompt_91:
-      train_acc: 0.9
-      validation_acc: 0.9
-      test_acc: 0.9
-    prompt_92:
-      train_acc: 0.9
-      validation_acc: 0.9
-      test_acc: 0.9
-    prompt_93:
-      train_acc: 0.9
-      validation_acc: 0.9
-      test_acc: 0.9
-    prompt_94:
-      train_acc: 0.9
-      validation_acc: 0.9
-      test_acc: 0.9
-    prompt_95:
-      train_acc: 0.9
-      validation_acc: 0.9
-      test_acc: 0.9
     prompt_101:
       train_acc: 1.0
       validation_acc: 1.0
