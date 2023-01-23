@@ -475,7 +475,8 @@ sampling_config:
 
 
 finetune_config:
-  finetune_epochs: [0, 1, 5, 25]
+  finetune_epochs: [1, 5, 25]
+  prompts_to_finetune: []
 
 evaluation_dataset_config:
   data_dir: *data_dir
